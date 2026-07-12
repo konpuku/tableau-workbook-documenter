@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tableau Hyper のログ
+hyperd.log
+
+# 生成された設計書 (リポジトリには含めない)
+*_設計書.md
+
+# OS
+Thumbs.db
+.DS_Store
