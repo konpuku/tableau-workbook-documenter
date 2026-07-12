@@ -15,3 +15,7 @@ hyperd.log
 # OS
 Thumbs.db
 .DS_Store
+
+# Tableau ワークブック (テスト用に置いてもコミットしない)
+*.twbx
+*.twb
