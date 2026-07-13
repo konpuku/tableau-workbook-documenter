@@ -22,3 +22,6 @@ Thumbs.db
 # Tableau ワークブック (テスト用に置いてもコミットしない)
 *.twbx
 *.twb
+
+# 配布用 zip の出力先
+dist/
