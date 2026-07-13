@@ -271,6 +271,12 @@ def render_field_list_chapter(
             for logical_table in datasource.logical_tables
             for column in logical_table.columns
         ]
+        if not rows:
+            # object-graph からフィールドが取れない形式では metadata-record を使う
+            rows = [
+                _metadata_field_row(column, samples)
+                for column in datasource.metadata_columns
+            ]
         if rows:
             sections.append(
                 [f"### 10.{len(sections) + 1} {datasource.display_name}", ""]
@@ -285,6 +291,21 @@ def render_field_list_chapter(
         lines.extend(f"※ {note}" for note in samples.notes)
         lines.append("")
     return lines
+
+
+def _metadata_field_row(
+    column, samples: SampleResult | None
+) -> tuple[str, ...]:
+    row = (
+        column.table or "-",
+        column.table or "-",
+        column.name,
+        column.datatype or "-",
+    )
+    if samples is None:
+        return row
+    values = find_values(samples, "", column.name)
+    return row + (", ".join(values) if values else "(取得不可)",)
 
 
 def _field_list_row(

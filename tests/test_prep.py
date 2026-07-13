@@ -93,6 +93,113 @@ class TestPrepParsing:
         assert datasource.extract is None
 
 
+EXTRACT_ONLY_TWB = """<?xml version='1.0' encoding='utf-8' ?>
+<workbook version='18.1'>
+  <datasources>
+    <datasource caption='抽出専用DS' name='federated.extract1'>
+      <connection class='federated'>
+        <metadata-records>
+          <metadata-record class='column'>
+            <remote-name>Order ID</remote-name>
+            <local-name>[Order ID]</local-name>
+            <parent-name>[Orders]</parent-name>
+            <local-type>string</local-type>
+            <object-id>[Orders_ABC123]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Sales</remote-name>
+            <local-name>[Sales]</local-name>
+            <parent-name>[Orders]</parent-name>
+            <local-type>real</local-type>
+            <object-id>[Orders_ABC123]</object-id>
+          </metadata-record>
+          <metadata-record class='capability'>
+            <remote-name>ignored</remote-name>
+          </metadata-record>
+        </metadata-records>
+      </connection>
+      <object-graph>
+        <objects>
+          <object caption='Orders' id='Orders_ABC123'>
+            <properties context='extract'>
+              <relation name='Orders_ABC123' table='[Extract].[Orders_ABC123]' type='table' />
+            </properties>
+          </object>
+        </objects>
+      </object-graph>
+      <extract count='-1' enabled='true' />
+    </datasource>
+  </datasources>
+</workbook>
+"""
+
+NO_OBJECT_GRAPH_TWB = """<?xml version='1.0' encoding='utf-8' ?>
+<workbook version='18.1'>
+  <datasources>
+    <datasource caption='旧形式DS' name='legacy'>
+      <connection class='excel-direct' filename='C:/data/book.xls'>
+        <metadata-records>
+          <metadata-record class='column'>
+            <remote-name>地域</remote-name>
+            <local-name>[地域]</local-name>
+            <parent-name>[オーダー]</parent-name>
+            <local-type>string</local-type>
+          </metadata-record>
+        </metadata-records>
+      </connection>
+    </datasource>
+  </datasources>
+</workbook>
+"""
+
+
+class TestExtractOnlyFallback:
+    """抽出専用ワークブック (properties context='' なし) のフォールバック。"""
+
+    def test_metadata_record_からフィールドを補完する(self) -> None:
+        root = ET.fromstring(EXTRACT_ONLY_TWB)
+        datasource = parse_datasources(root)[0]
+        columns = datasource.logical_tables[0].columns
+        assert [(c.name, c.datatype, c.table) for c in columns] == [
+            ("Order ID", "string", "Orders"),
+            ("Sales", "real", "Orders"),
+        ]
+
+    def test_extract_側の内部テーブル名は表示名に置き換える(self) -> None:
+        root = ET.fromstring(EXTRACT_ONLY_TWB)
+        datasource = parse_datasources(root)[0]
+        relation = datasource.logical_tables[0].relation
+        assert relation is not None
+        assert relation.name == "Orders"  # Orders_ABC123 ではなく caption
+
+    def test_フィールド一覧章に出力される(self) -> None:
+        from twbdoc.model import Workbook, WorkbookMeta
+        from twbdoc.renderers.datasources import render_field_list_chapter
+
+        root = ET.fromstring(EXTRACT_ONLY_TWB)
+        workbook = Workbook(
+            meta=WorkbookMeta(source_file="x.twbx"),
+            datasources=parse_datasources(root),
+        )
+        text = "\n".join(render_field_list_chapter(workbook))
+        assert "(該当なし)" not in text
+        assert "| Orders | Orders | Order ID | string |" in text
+
+    def test_object_graph_なしでも_metadata_columns_で出力される(self) -> None:
+        from twbdoc.model import Workbook, WorkbookMeta
+        from twbdoc.renderers.datasources import render_field_list_chapter
+
+        root = ET.fromstring(NO_OBJECT_GRAPH_TWB)
+        datasource = parse_datasources(root)[0]
+        assert datasource.metadata_columns[0].name == "地域"
+        workbook = Workbook(
+            meta=WorkbookMeta(source_file="x.twbx"),
+            datasources=(datasource,),
+        )
+        text = "\n".join(render_field_list_chapter(workbook))
+        assert "| オーダー | オーダー | 地域 | string |" in text
+
+
 class TestRenderExpression:
     def test_単純な等式(self) -> None:
         element = ET.fromstring(

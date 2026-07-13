@@ -202,6 +202,7 @@ class Datasource:
     connections: tuple[Connection, ...] = ()
     relation: Relation | None = None
     logical_tables: tuple[LogicalTable, ...] = ()
+    metadata_columns: tuple[TableColumn, ...] = ()
     relationships: tuple[Relationship, ...] = ()
     ds_filters: tuple[WorksheetFilter, ...] = ()
     extract: ExtractInfo | None = None

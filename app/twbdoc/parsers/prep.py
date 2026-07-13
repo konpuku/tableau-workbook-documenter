@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import replace
 
 from ..model import (
     Connection,
@@ -57,11 +58,34 @@ def parse_relation_tree(datasource: ET.Element) -> Relation | None:
 
 
 def parse_logical_tables(datasource: ET.Element) -> tuple[LogicalTable, ...]:
-    """論理テーブル (object-graph の object) を抽出する。"""
-    return tuple(
+    """論理テーブル (object-graph の object) を抽出する。
+
+    抽出専用ワークブック (元接続の properties context='' を持たない形式) では
+    フィールド定義が relation に含まれないため、metadata-record から補完する。
+    """
+    tables = tuple(
         _parse_logical_table(element)
         for element in datasource.findall("object-graph/objects/object")
     )
+    if not tables or all(table.columns for table in tables):
+        return tables
+    metadata_columns = _metadata_columns_by_object(datasource)
+    return tuple(
+        table
+        if table.columns
+        else replace(table, columns=metadata_columns.get(table.object_id, ()))
+        for table in tables
+    )
+
+
+def parse_metadata_columns(datasource: ET.Element) -> tuple[TableColumn, ...]:
+    """metadata-record から全フィールド定義を抽出する (object-graph が無い場合の代替)。"""
+    columns: dict[tuple[str, str], TableColumn] = {}
+    for record in datasource.iter("metadata-record"):
+        column = _metadata_record_to_column(record)
+        if column is not None:
+            columns.setdefault((column.table, column.name), column)
+    return tuple(columns.values())
 
 
 def parse_relationships(
@@ -223,12 +247,68 @@ def _parse_join_conditions(element: ET.Element) -> tuple[str, ...]:
 
 
 def _parse_logical_table(element: ET.Element) -> LogicalTable:
-    relation = element.find("properties[@context='']/relation")
+    caption = element.get("caption", "")
+    relation_element = element.find("properties[@context='']/relation")
+    used_fallback = relation_element is None
+    if relation_element is None:
+        # 抽出専用形式では元接続の properties が無いため extract 側を使う
+        relation_element = element.find("properties/relation")
+    relation = (
+        None if relation_element is None else _parse_relation(relation_element)
+    )
+    if (
+        used_fallback
+        and relation is not None
+        and relation.rel_type == "table"
+        and caption
+    ):
+        # extract 側のテーブル名は内部 ID のため表示名に置き換える
+        relation = replace(relation, name=caption)
     return LogicalTable(
         object_id=element.get("id", ""),
-        caption=element.get("caption", ""),
-        relation=None if relation is None else _parse_relation(relation),
-        columns=() if relation is None else _collect_relation_columns(relation),
+        caption=caption,
+        relation=relation,
+        columns=(
+            ()
+            if relation_element is None
+            else _collect_relation_columns(relation_element)
+        ),
+    )
+
+
+def _metadata_columns_by_object(
+    datasource: ET.Element,
+) -> dict[str, tuple[TableColumn, ...]]:
+    """metadata-record を object-id (論理テーブル) ごとにまとめる。"""
+    grouped: dict[str, dict[tuple[str, str], TableColumn]] = {}
+    for record in datasource.iter("metadata-record"):
+        column = _metadata_record_to_column(record)
+        if column is None:
+            continue
+        object_id = (record.findtext("object-id") or "").strip().strip("[]")
+        if not object_id:
+            continue
+        grouped.setdefault(object_id, {}).setdefault(
+            (column.table, column.name), column
+        )
+    return {
+        object_id: tuple(columns.values())
+        for object_id, columns in grouped.items()
+    }
+
+
+def _metadata_record_to_column(record: ET.Element) -> TableColumn | None:
+    if record.get("class") != "column":
+        return None
+    local_name = (record.findtext("local-name") or "").strip().strip("[]")
+    remote_name = (record.findtext("remote-name") or "").strip()
+    name = local_name or remote_name
+    if not name:
+        return None
+    return TableColumn(
+        name=name,
+        datatype=(record.findtext("local-type") or "").strip(),
+        table=(record.findtext("parent-name") or "").strip().strip("[]"),
     )
 
 

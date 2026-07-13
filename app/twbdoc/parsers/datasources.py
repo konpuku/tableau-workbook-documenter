@@ -13,6 +13,7 @@ from .prep import (
     parse_extract,
     parse_field_changes,
     parse_logical_tables,
+    parse_metadata_columns,
     parse_relation_tree,
     parse_relationships,
 )
@@ -40,6 +41,7 @@ def _parse_datasource(element: ET.Element) -> Datasource:
         connections=parse_connections(element),
         relation=parse_relation_tree(element),
         logical_tables=logical_tables,
+        metadata_columns=parse_metadata_columns(element),
         relationships=parse_relationships(element, logical_tables),
         ds_filters=parse_ds_filters(element),
         extract=parse_extract(element),
