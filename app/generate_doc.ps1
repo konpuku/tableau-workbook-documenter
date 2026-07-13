@@ -1,16 +1,23 @@
 ﻿# Tableau ワークブック設計書生成ツール 起動スクリプト
+# 通常はこのファイルを直接実行せず、1 つ上のフォルダの generate_doc.bat を使ってください。
 # 使い方:
 #   .\generate_doc.ps1 <file1.twbx> [<file2.twb> ...]
-#   引数なしの場合はこのフォルダと親フォルダの *.twbx / *.twb を全て処理する
+#   引数なしの場合は bat のあるフォルダとその親フォルダの *.twbx / *.twb を全て処理する
 param(
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Files
 )
 
 $ErrorActionPreference = 'Stop'
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path   # app フォルダ
+$batDir = Split-Path -Parent $scriptDir                        # generate_doc.bat のあるフォルダ
 
 function Find-Python {
+    # 同梱の Python (app\python) があれば最優先で使う
+    $bundled = Join-Path $scriptDir 'python\python.exe'
+    if (Test-Path $bundled) {
+        return $bundled
+    }
     foreach ($candidate in @('py', 'python')) {
         $command = Get-Command $candidate -ErrorAction SilentlyContinue
         if ($null -ne $command) {
@@ -30,18 +37,26 @@ function Find-Python {
 $python = Find-Python
 if ($null -eq $python) {
     Write-Host '[エラー] Python 3 が見つかりません。' -ForegroundColor Red
-    Write-Host '  会社の PC の場合はソフトウェアセンター等から Python をインストールしてください。'
-    Write-Host '  https://www.python.org/downloads/ (インストール時に "Add python.exe to PATH" にチェック)'
+    Write-Host '  対処方法 (いずれか):'
+    Write-Host '  1. 管理者・IT 担当者に「同梱 Python のセットアップ」を依頼する'
+    Write-Host '     (ネットワークに繋がる PC で app\setup_python.ps1 を実行し、フォルダごと配布)'
+    Write-Host '  2. Python をインストールする https://www.python.org/downloads/'
+    Write-Host '     (インストール時に "Add python.exe to PATH" にチェック)'
     exit 3
 }
 
+if ($python -like '*\python\python.exe') {
+    Write-Host "同梱の Python を使用します: $python"
+}
+
 if (-not $Files -or $Files.Count -eq 0) {
-    $targets = @(Get-ChildItem -Path $scriptDir, (Split-Path -Parent $scriptDir) -File |
+    $searchDirs = @($batDir, (Split-Path -Parent $batDir))
+    $targets = @(Get-ChildItem -Path $searchDirs -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Extension -in '.twbx', '.twb' } |
         Select-Object -ExpandProperty FullName)
     if ($targets.Count -eq 0) {
         Write-Host '[エラー] 処理対象の .twbx / .twb が見つかりません。' -ForegroundColor Red
-        Write-Host '  ファイルをこの bat にドラッグ&ドロップするか、twbx と同じフォルダに置いてください。'
+        Write-Host '  ファイルを generate_doc.bat にドラッグ&ドロップするか、bat と同じフォルダに置いてください。'
         exit 2
     }
     Write-Host "引数がないため、フォルダ内の $($targets.Count) ファイルを処理します。"

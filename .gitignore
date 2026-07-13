@@ -9,6 +9,9 @@ htmlcov/
 # Tableau Hyper のログ
 hyperd.log
 
+# 同梱 Python (setup_python.ps1 で配置する。リポジトリには含めない)
+app/python/
+
 # 生成された設計書 (リポジトリには含めない)
 *_設計書.md
 
