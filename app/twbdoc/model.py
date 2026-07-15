@@ -77,10 +77,56 @@ class CalculatedField:
     comment: str = ""
     inline_comments: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
+    table_calc: TableCalc | None = None
 
     @property
     def display_name(self) -> str:
         return self.caption or self.name.strip("[]")
+
+
+@dataclass(frozen=True)
+class TableCalc:
+    """表計算の設定 (<table-calc>)。
+
+    ordering_type: 次を使用して計算 (Rows / Columns / Field 等)。
+    calc_type: 簡易表計算の種類 (PctTotal 等)。空なら式による表計算。
+    order_fields: ordering_type='Field' のとき計算に使うディメンション (順序付き)。
+    extra: 未知の属性 (名前, 値) — サンプル未確認の設定も欠落させないための受け皿。
+    """
+
+    ordering_type: str = ""
+    calc_type: str = ""
+    order_fields: tuple[str, ...] = ()
+    extra: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class PillTableCalc:
+    """ワークシート上のピルに設定された表計算 (column-instance 単位)。"""
+
+    column_ref: str
+    table_calc: TableCalc
+    derivation: str = ""
+
+
+@dataclass(frozen=True)
+class DashboardAction:
+    """ダッシュボードアクション (<actions> 配下)。
+
+    kind はコマンド種別を日本語化したもの (ハイライト / フィルター / URL 等)。
+    params には表示済み以外の生パラメーターを (名前, 値) で保持する。
+    """
+
+    caption: str
+    name: str = ""
+    kind: str = ""
+    activation: str = ""
+    source_dashboard: str = ""
+    source_worksheet: str = ""
+    excluded_sheets: tuple[str, ...] = ()
+    target: str = ""
+    fields: str = ""
+    params: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -244,6 +290,7 @@ class Worksheet:
     dashboards: tuple[str, ...] = ()
     filters: tuple[WorksheetFilter, ...] = ()
     used_columns: tuple[str, ...] = ()
+    table_calcs: tuple[PillTableCalc, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -297,3 +344,4 @@ class Workbook:
     dashboards: tuple[Dashboard, ...] = ()
     style_rules: tuple[StyleRule, ...] = ()
     shared_filters: tuple[WorksheetFilter, ...] = ()
+    actions: tuple[DashboardAction, ...] = ()

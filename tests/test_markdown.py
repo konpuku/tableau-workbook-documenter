@@ -30,18 +30,61 @@ class TestRender:
         markdown = _render_minimal(minimal_root)
         for heading in [
             "# test 設計書",
+            "## 目次",
             "## 1. ワークブック概要",
             "## 2. データソースと前処理",
             "## 3. ダッシュボード構成",
-            "## 4. ワークシート一覧",
-            "## 5. フィルター",
-            "## 6. パラメーター",
-            "## 7. 計算フィールド",
-            "## 8. 別名一覧",
-            "## 9. 書式設定",
-            "## 10. テーブル別フィールド一覧 (参考)",
+            "## 4. ダッシュボードアクション",
+            "## 5. ワークシート一覧",
+            "## 6. フィルター",
+            "## 7. パラメーター",
+            "## 8. 計算フィールド",
+            "## 9. 表計算設定",
+            "## 10. 別名一覧",
+            "## 11. 書式設定",
+            "## 12. テーブル別フィールド一覧 (参考)",
         ]:
             assert heading in markdown, heading
+
+    def test_目次にリンクが出る(self, minimal_root: ET.Element) -> None:
+        markdown = _render_minimal(minimal_root)
+        assert "- [1. ワークブック概要](#1-ワークブック概要)" in markdown
+        # 節見出し (###) もインデント付きで含まれる
+        assert "  - [2.1 スーパーストア](#21-スーパーストア)" in markdown
+        assert (
+            "  - [8.1 リネージュ (依存関係図)](#81-リネージュ-依存関係図)"
+            in markdown
+        )
+
+    def test_目次はコードブロック内の行を拾わない(
+        self, minimal_root: ET.Element
+    ) -> None:
+        markdown = _render_minimal(minimal_root)
+        toc_start = markdown.index("## 目次")
+        toc_end = markdown.index("## 1. ワークブック概要")
+        toc = markdown[toc_start:toc_end]
+        assert "mermaid" not in toc
+
+    def test_リネージュ図にclickとリンク一覧が出る(
+        self, minimal_root: ET.Element
+    ) -> None:
+        markdown = _render_minimal(minimal_root)
+        assert 'click f0 "#82-利益率" "利益率 の詳細へ"' in markdown
+        assert "[利益率](#82-利益率)" in markdown
+        assert "各計算フィールドの詳細:" in markdown
+
+    def test_データモデル図からフィールド一覧へのリンクが出る(
+        self, minimal_root: ET.Element
+    ) -> None:
+        markdown = _render_minimal(minimal_root)
+        assert "[テーブル別フィールド一覧](#121-スーパーストア)" in markdown
+
+    def test_アクション章と表計算章が出る(
+        self, minimal_root: ET.Element
+    ) -> None:
+        markdown = _render_minimal(minimal_root)
+        assert "ハイライト1" in markdown
+        assert "合計に対する割合 [PctTotal]" in markdown
 
     def test_生成日時が出力される(self, minimal_root: ET.Element) -> None:
         assert "生成日時: 2026-07-12 10:00" in _render_minimal(minimal_root)

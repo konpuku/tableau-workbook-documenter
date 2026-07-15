@@ -51,27 +51,43 @@ DATA_MODEL_LEGEND = (
 
 
 def render_datasources_prep(
-    workbook: Workbook, caption_map: dict[str, str]
+    workbook: Workbook,
+    caption_map: dict[str, str],
+    number: int = 2,
+    field_list_anchors: dict[str, str] | None = None,
 ) -> list[str]:
-    """2. データソースと前処理。"""
-    lines = ["## 2. データソースと前処理", ""]
+    """データソースと前処理章。
+
+    field_list_anchors: データソース内部名 -> 巻末フィールド一覧節のアンカー。
+    渡された場合はデータモデル図の直下にリンクを併記する。
+    """
+    lines = [f"## {number}. データソースと前処理", ""]
     if not workbook.datasources:
         lines.extend(["(該当なし)", ""])
         return lines
+    anchors = field_list_anchors or {}
     for index, datasource in enumerate(workbook.datasources, start=1):
         lines.extend(
-            _render_datasource(datasource, caption_map, f"2.{index}")
+            _render_datasource(
+                datasource,
+                caption_map,
+                f"{number}.{index}",
+                anchors.get(datasource.name, ""),
+            )
         )
     return lines
 
 
 def _render_datasource(
-    datasource: Datasource, caption_map: dict[str, str], number: str
+    datasource: Datasource,
+    caption_map: dict[str, str],
+    number: str,
+    field_list_anchor: str,
 ) -> list[str]:
     lines = [f"### {number} {datasource.display_name}", ""]
     lines.extend(_render_basic_info(datasource))
     lines.extend(_render_connections(datasource))
-    lines.extend(_render_data_model(datasource))
+    lines.extend(_render_data_model(datasource, field_list_anchor))
     lines.extend(_render_relationship_table(datasource))
     lines.extend(_render_joins(datasource))
     lines.extend(_render_unions(datasource))
@@ -147,7 +163,9 @@ def _render_relationship_table(datasource: Datasource) -> list[str]:
     )
 
 
-def _render_data_model(datasource: Datasource) -> list[str]:
+def _render_data_model(
+    datasource: Datasource, field_list_anchor: str = ""
+) -> list[str]:
     """データモデル図 (リレーションシップ・結合・ユニオンを 1 枚の flowchart で表現)。
 
     - 論理テーブル = subgraph の枠 (リレーションシップのキー項目を枠内に表示)
@@ -213,7 +231,12 @@ def _render_data_model(datasource: Datasource) -> list[str]:
             lines.append(
                 f"- 「{caption}」はユニオン「{union.name}」({members}) で構成されています"
             )
-    if union_map:
+    if field_list_anchor:
+        lines.append(
+            f"- 各テーブルの全フィールドは"
+            f" [テーブル別フィールド一覧](#{field_list_anchor}) を参照"
+        )
+    if union_map or field_list_anchor:
         lines.append("")
     return lines
 
@@ -253,19 +276,35 @@ def _key_datatype(table, key: str) -> str:
     return "field"
 
 
+def field_list_datasources(workbook: Workbook) -> tuple[Datasource, ...]:
+    """巻末フィールド一覧に節が生成されるデータソース (出現順)。
+
+    render_field_list_chapter の節構成と一致させることで、
+    データモデル図からのアンカーリンクの計算に使える。
+    """
+    return tuple(
+        datasource
+        for datasource in workbook.datasources
+        if any(table.columns for table in datasource.logical_tables)
+        or datasource.metadata_columns
+    )
+
+
 def render_field_list_chapter(
-    workbook: Workbook, samples: SampleResult | None = None
+    workbook: Workbook,
+    samples: SampleResult | None = None,
+    number: int = 12,
 ) -> list[str]:
-    """10. テーブル別フィールド一覧 (参考)。設計書の巻末に全フィールドを別掲する。
+    """テーブル別フィールド一覧章 (参考)。設計書の巻末に全フィールドを別掲する。
 
     samples が渡された場合は「サンプル値 (代表値)」列を追加する。
     """
-    lines = ["## 10. テーブル別フィールド一覧 (参考)", ""]
+    lines = [f"## {number}. テーブル別フィールド一覧 (参考)", ""]
     headers: tuple[str, ...] = ("論理テーブル", "物理テーブル", "フィールド", "型")
     if samples is not None:
         headers = headers + ("サンプル値 (代表値)",)
     sections: list[list[str]] = []
-    for datasource in workbook.datasources:
+    for datasource in field_list_datasources(workbook):
         rows = [
             _field_list_row(logical_table, column, samples)
             for logical_table in datasource.logical_tables
@@ -277,11 +316,13 @@ def render_field_list_chapter(
                 _metadata_field_row(column, samples)
                 for column in datasource.metadata_columns
             ]
-        if rows:
-            sections.append(
-                [f"### 10.{len(sections) + 1} {datasource.display_name}", ""]
-                + _table(headers, rows)
-            )
+        sections.append(
+            [
+                f"### {number}.{len(sections) + 1} {datasource.display_name}",
+                "",
+            ]
+            + _table(headers, rows)
+        )
     if not sections:
         lines.extend(["(該当なし)", ""])
         return lines

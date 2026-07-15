@@ -11,8 +11,14 @@ from ..model import Workbook
 LEGEND = "凡例: 長方形 = 計算フィールド / 六角形 = パラメーター / 丸角 = データソース列"
 
 
-def render_lineage_mermaid(workbook: Workbook) -> list[str]:
-    """ワークブック全体の計算フィールド依存関係図の行リストを返す。"""
+def render_lineage_mermaid(
+    workbook: Workbook, anchors: dict[str, str] | None = None
+) -> list[str]:
+    """ワークブック全体の計算フィールド依存関係図の行リストを返す。
+
+    anchors: 計算フィールド内部名 -> 詳細節のアンカー。渡された場合は
+    Mermaid の click (対応ビューアのみ動作) と図直下のリンク一覧を併記する。
+    """
     calc_names = {calc.name: calc.display_name for calc in workbook.calculated_fields}
     param_names = {
         parameter.name: parameter.display_name
@@ -57,12 +63,31 @@ def render_lineage_mermaid(workbook: Workbook) -> list[str]:
 
     if not node_ids:
         return []
-    return (
+    click_lines: list[str] = []
+    link_items: list[str] = []
+    for internal_name, node_id in node_ids.items():
+        anchor = (anchors or {}).get(internal_name)
+        if not anchor:
+            continue
+        label = _escape(calc_names.get(internal_name, internal_name))
+        click_lines.append(f'    click {node_id} "#{anchor}" "{label} の詳細へ"')
+        link_items.append(f"[{calc_names.get(internal_name, internal_name)}](#{anchor})")
+    lines = (
         ["```mermaid", "graph LR"]
         + node_lines
         + edge_lines
+        + click_lines
         + ["```", "", LEGEND]
     )
+    if link_items:
+        lines.extend(
+            [
+                "",
+                "各計算フィールドの詳細: " + " / ".join(link_items),
+                "(対応ビューアでは図中のノードをクリックしても移動できます)",
+            ]
+        )
+    return lines
 
 
 def _escape(label: str) -> str:

@@ -141,6 +141,14 @@ MINIMAL_TWB = """<?xml version='1.0' encoding='utf-8' ?>
           <alias key='&quot;west&quot;' value='西地区' />
         </aliases>
       </column>
+      <column caption='移動平均売上' datatype='real' name='[Calculation_300]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='WINDOW_AVG(SUM([Sales]), -2, 0)'>
+          <table-calc ordering-type='Field'>
+            <order field='[superstore-federated].[none:Region:nk]' />
+            <order field='[superstore-federated].[Sales]' />
+          </table-calc>
+        </calculation>
+      </column>
     </datasource>
   </datasources>
   <shared-views>
@@ -174,6 +182,19 @@ MINIMAL_TWB = """<?xml version='1.0' encoding='utf-8' ?>
           <datasource-dependencies datasource='superstore-federated'>
             <column caption='利益率' datatype='real' name='[Calculation_100]' />
             <column datatype='string' name='[Region]' />
+            <column caption='移動平均売上' datatype='real' name='[Calculation_300]'>
+              <calculation class='tableau' formula='WINDOW_AVG(SUM([Sales]), -2, 0)'>
+                <table-calc ordering-type='Rows' />
+              </calculation>
+            </column>
+            <column-instance column='[Calculation_300]' derivation='User'
+                             name='[usr:Calculation_300:qk]' pivot='key' type='quantitative'>
+              <table-calc ordering-type='Rows' />
+            </column-instance>
+            <column-instance column='[Sales]' derivation='Sum'
+                             name='[sum:Sales:qk]' pivot='key' type='quantitative'>
+              <table-calc ordering-type='Columns' type='PctTotal' />
+            </column-instance>
           </datasource-dependencies>
           <filter class='categorical' column='[superstore-federated].[none:Region:nk]'>
             <groupfilter function='union' user:ui-enumeration='inclusive' user:ui-marker='enumerate'>
@@ -242,6 +263,35 @@ MINIMAL_TWB = """<?xml version='1.0' encoding='utf-8' ?>
       <format attr='color' value='#000000' />
     </style-rule>
   </style>
+  <actions>
+    <action caption='ハイライト1' name='[Action1_ABC]'>
+      <activation auto-clear='true' type='on-select' />
+      <source dashboard='売上ダッシュボード' type='sheet'>
+        <exclude-sheet name='単独シート' />
+      </source>
+      <command command='tsc:brush'>
+        <param name='exclude' value='単独シート' />
+        <param name='field-captions' value='地域' />
+        <param name='target' value='売上ダッシュボード' />
+      </command>
+    </action>
+    <action caption='詳細ページへ' name='[Action2_DEF]'>
+      <activation type='on-menu' />
+      <source dashboard='売上ダッシュボード' type='sheet' worksheet='売上推移' />
+      <command command='tsc:url'>
+        <param name='url' value='https://example.com/detail?region=&lt;地域&gt;' />
+      </command>
+    </action>
+    <edit-group-action caption='地域セット更新' name='[Action3_GHI]'>
+      <activation type='on-select' />
+      <source dashboard='売上ダッシュボード' type='sheet' worksheet='売上推移' />
+      <add-or-remove-marks value='assign' />
+      <params>
+        <param name='selection-clear-set-option' value='do-nothing' />
+        <param name='target-group' value='[superstore-federated].[Region Set]' />
+      </params>
+    </edit-group-action>
+  </actions>
 </workbook>
 """
 

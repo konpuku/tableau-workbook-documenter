@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from ..fieldref import find_referenced_names
 from ..model import CalculatedField
 from .parameters import PARAMETERS_DATASOURCE_NAME
+from .table_calcs import parse_table_calc
 
 _LINE_COMMENT_PATTERN = re.compile(r"//([^\r\n]*)")
 _BLOCK_COMMENT_PATTERN = re.compile(r"/\*(.*?)\*/", re.DOTALL)
@@ -118,4 +119,5 @@ def _parse_calculated_field(
         comment=parse_field_comment(column),
         inline_comments=_extract_inline_comments(raw_formula),
         depends_on=find_referenced_names(raw_formula, known_names),
+        table_calc=parse_table_calc(calculation),
     )

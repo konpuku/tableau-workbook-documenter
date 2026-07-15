@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from ..model import Worksheet
 from .filters import parse_view_filters
 from .parameters import PARAMETERS_DATASOURCE_NAME
+from .table_calcs import parse_pill_table_calcs
 
 
 def parse_worksheets(root: ET.Element) -> tuple[Worksheet, ...]:
@@ -24,6 +25,7 @@ def _parse_worksheet(element: ET.Element) -> Worksheet:
         datasources=_parse_used_datasources(element),
         filters=parse_view_filters(element),
         used_columns=_parse_used_columns(element),
+        table_calcs=parse_pill_table_calcs(element),
     )
 
 

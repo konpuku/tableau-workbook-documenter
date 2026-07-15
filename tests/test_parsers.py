@@ -68,7 +68,11 @@ class TestDatasources:
 class TestCalculations:
     def test_計算フィールドを抽出する(self, minimal_root: ET.Element) -> None:
         fields = parse_calculated_fields(minimal_root)
-        assert [f.display_name for f in fields] == ["利益率", "利益率判定"]
+        assert [f.display_name for f in fields] == [
+            "利益率",
+            "利益率判定",
+            "移動平均売上",
+        ]
         assert fields[0].formula == "SUM([利益])/SUM([売上])"
         assert fields[0].datasource == "スーパーストア"
 

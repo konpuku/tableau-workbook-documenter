@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import replace
 
 from ..model import Dashboard, Workbook, Worksheet, Zone
+from .actions import parse_actions
 from .calculations import parse_calculated_fields
 from .dashboards import ZONE_TYPE_WORKSHEET, parse_dashboards
 from .datasources import parse_datasources
@@ -29,6 +30,7 @@ def parse_workbook(root: ET.Element, source_file: str) -> Workbook:
         dashboards=dashboards,
         style_rules=parse_style_rules(root),
         shared_filters=parse_shared_filters(root),
+        actions=parse_actions(root),
     )
 
 

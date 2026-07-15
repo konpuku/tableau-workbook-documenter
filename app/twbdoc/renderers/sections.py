@@ -10,6 +10,7 @@ from ..model import (
     StyleRule,
     Workbook,
 )
+from .anchors import gfm_slug
 from .filters import describe_filter, filter_kind, filter_target
 from .lineage import render_lineage_mermaid
 from .tables import table as _table
@@ -38,8 +39,8 @@ ROLE_LABELS = {
 }
 
 
-def render_overview(workbook: Workbook) -> list[str]:
-    """1. ワークブック概要。"""
+def render_overview(workbook: Workbook, number: int = 1) -> list[str]:
+    """ワークブック概要章。"""
     meta = workbook.meta
     rows = [
         ("元ファイル", meta.source_file),
@@ -51,22 +52,25 @@ def render_overview(workbook: Workbook) -> list[str]:
         ("ダッシュボード数", str(len(workbook.dashboards))),
         ("パラメーター数", str(len(workbook.parameters))),
         ("計算フィールド数", str(len(workbook.calculated_fields))),
+        ("ダッシュボードアクション数", str(len(workbook.actions))),
     ]
-    lines = ["## 1. ワークブック概要", ""]
+    lines = [f"## {number}. ワークブック概要", ""]
     lines.extend(_table(("項目", "値"), rows))
     return lines
 
 
 def render_dashboards(
-    dashboards: tuple[Dashboard, ...], caption_map: dict[str, str]
+    dashboards: tuple[Dashboard, ...],
+    caption_map: dict[str, str],
+    number: int = 3,
 ) -> list[str]:
-    """3. ダッシュボード構成。"""
-    lines = ["## 3. ダッシュボード構成", ""]
+    """ダッシュボード構成章。"""
+    lines = [f"## {number}. ダッシュボード構成", ""]
     if not dashboards:
         lines.extend([NOT_APPLICABLE, ""])
         return lines
     for index, dashboard in enumerate(dashboards, start=1):
-        lines.append(f"### 3.{index} {dashboard.name}")
+        lines.append(f"### {number}.{index} {dashboard.name}")
         lines.append("")
         lines.append(f"- サイズ: {_describe_size(dashboard.size)}")
         if dashboard.image_path:
@@ -82,9 +86,9 @@ def render_dashboards(
     return lines
 
 
-def render_worksheets(workbook: Workbook) -> list[str]:
-    """4. ワークシート一覧 (使用している計算フィールド・パラメーター付き)。"""
-    lines = ["## 4. ワークシート一覧", ""]
+def render_worksheets(workbook: Workbook, number: int = 5) -> list[str]:
+    """ワークシート一覧章 (使用している計算フィールド・パラメーター付き)。"""
+    lines = [f"## {number}. ワークシート一覧", ""]
     if not workbook.worksheets:
         lines.extend([NOT_APPLICABLE, ""])
         return lines
@@ -123,10 +127,10 @@ def render_worksheets(workbook: Workbook) -> list[str]:
 
 
 def render_filters(
-    workbook: Workbook, caption_map: dict[str, str]
+    workbook: Workbook, caption_map: dict[str, str], number: int = 6
 ) -> list[str]:
-    """5. フィルター (共通フィルター + ワークシートごとのフィルター)。"""
-    lines = ["## 5. フィルター", ""]
+    """フィルター章 (共通フィルター + ワークシートごとのフィルター)。"""
+    lines = [f"## {number}. フィルター", ""]
     shared_rows = [
         (
             filter_target(filter_, caption_map),
@@ -149,10 +153,10 @@ def render_filters(
         lines.extend([NOT_APPLICABLE, ""])
         return lines
     if shared_rows:
-        lines.extend(["### 5.1 共通フィルター (複数シートに適用)", ""])
+        lines.extend([f"### {number}.1 共通フィルター (複数シートに適用)", ""])
         lines.extend(_table(("対象フィールド", "種別", "適用内容"), shared_rows))
     if sheet_rows:
-        section_number = "5.2" if shared_rows else "5.1"
+        section_number = f"{number}.2" if shared_rows else f"{number}.1"
         lines.extend([f"### {section_number} ワークシートのフィルター", ""])
         lines.extend(
             _table(("ワークシート", "対象フィールド", "種別", "適用内容"), sheet_rows)
@@ -160,9 +164,11 @@ def render_filters(
     return lines
 
 
-def render_parameters(parameters: tuple[Parameter, ...]) -> list[str]:
-    """6. パラメーター。"""
-    lines = ["## 6. パラメーター", ""]
+def render_parameters(
+    parameters: tuple[Parameter, ...], number: int = 7
+) -> list[str]:
+    """パラメーター章。"""
+    lines = [f"## {number}. パラメーター", ""]
     if not parameters:
         lines.extend([NOT_APPLICABLE, ""])
         return lines
@@ -181,21 +187,27 @@ def render_parameters(parameters: tuple[Parameter, ...]) -> list[str]:
 
 
 def render_calculated_fields(
-    workbook: Workbook, caption_map: dict[str, str]
+    workbook: Workbook, caption_map: dict[str, str], number: int = 8
 ) -> list[str]:
-    """7. 計算フィールド (リネージュ図 + フィールドごとの詳細)。"""
+    """計算フィールド章 (リネージュ図 + フィールドごとの詳細)。"""
     fields = workbook.calculated_fields
-    lines = ["## 7. 計算フィールド", ""]
+    lines = [f"## {number}. 計算フィールド", ""]
     if not fields:
         lines.extend([NOT_APPLICABLE, ""])
         return lines
 
-    lines.extend(["### 7.1 リネージュ (依存関係図)", ""])
-    lines.extend(render_lineage_mermaid(workbook))
+    anchors = {
+        calculated.name: gfm_slug(
+            f"{number}.{index} {calculated.display_name}"
+        )
+        for index, calculated in enumerate(fields, start=2)
+    }
+    lines.extend([f"### {number}.1 リネージュ (依存関係図)", ""])
+    lines.extend(render_lineage_mermaid(workbook, anchors))
     lines.append("")
 
     for index, calculated in enumerate(fields, start=2):
-        lines.append(f"### 7.{index} {calculated.display_name}")
+        lines.append(f"### {number}.{index} {calculated.display_name}")
         lines.append("")
         used_in = _worksheets_using(workbook, calculated.name)
         referenced_by = [
@@ -234,9 +246,11 @@ def render_calculated_fields(
     return lines
 
 
-def render_aliases(datasources: tuple[Datasource, ...]) -> list[str]:
-    """8. 別名一覧。"""
-    lines = ["## 8. 別名一覧", ""]
+def render_aliases(
+    datasources: tuple[Datasource, ...], number: int = 10
+) -> list[str]:
+    """別名一覧章。"""
+    lines = [f"## {number}. 別名一覧", ""]
     fields_with_aliases = [
         (datasource, field)
         for datasource in datasources
@@ -254,9 +268,11 @@ def render_aliases(datasources: tuple[Datasource, ...]) -> list[str]:
     return lines
 
 
-def render_styles(style_rules: tuple[StyleRule, ...]) -> list[str]:
-    """9. 書式設定。"""
-    lines = ["## 9. 書式設定", ""]
+def render_styles(
+    style_rules: tuple[StyleRule, ...], number: int = 11
+) -> list[str]:
+    """書式設定章。"""
+    lines = [f"## {number}. 書式設定", ""]
     rows = [
         (setting.scope or "-", rule.element or "-", setting.attr, setting.value)
         for rule in style_rules
