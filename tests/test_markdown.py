@@ -69,9 +69,23 @@ class TestRender:
         self, minimal_root: ET.Element
     ) -> None:
         markdown = _render_minimal(minimal_root)
-        assert 'click f0 "#82-利益率" "利益率 の詳細へ"' in markdown
+        # ツールチップにはコメントを除いた計算式を表示する
+        assert 'click f0 "#82-利益率" "利益率: SUM([利益])/SUM([売上])"' in markdown
         assert "[利益率](#82-利益率)" in markdown
         assert "各計算フィールドの詳細:" in markdown
+
+    def test_ツールチップの式はコメント除去して1行化される(
+        self, minimal_root: ET.Element
+    ) -> None:
+        markdown = _render_minimal(minimal_root)
+        click_line = next(
+            line
+            for line in markdown.splitlines()
+            if line.strip().startswith("click") and "利益率判定" in line
+        )
+        assert "しきい値は要件" not in click_line  # // コメント除去
+        assert "暫定条件" not in click_line  # /* */ コメント除去
+        assert "\n" not in click_line
 
     def test_データモデル図からフィールド一覧へのリンクが出る(
         self, minimal_root: ET.Element

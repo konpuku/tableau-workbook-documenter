@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import re
+
 from ..model import Workbook
 
 LEGEND = "凡例: 長方形 = 計算フィールド / 六角形 = パラメーター / 丸角 = データソース列"
@@ -63,14 +65,18 @@ def render_lineage_mermaid(
 
     if not node_ids:
         return []
+    formulas = {calc.name: calc.formula for calc in workbook.calculated_fields}
     click_lines: list[str] = []
     link_items: list[str] = []
     for internal_name, node_id in node_ids.items():
         anchor = (anchors or {}).get(internal_name)
         if not anchor:
             continue
-        label = _escape(calc_names.get(internal_name, internal_name))
-        click_lines.append(f'    click {node_id} "#{anchor}" "{label} の詳細へ"')
+        tooltip = _tooltip_text(
+            calc_names.get(internal_name, internal_name),
+            formulas.get(internal_name, ""),
+        )
+        click_lines.append(f'    click {node_id} "#{anchor}" "{tooltip}"')
         link_items.append(f"[{calc_names.get(internal_name, internal_name)}](#{anchor})")
     lines = (
         ["```mermaid", "graph LR"]
@@ -92,3 +98,26 @@ def render_lineage_mermaid(
 
 def _escape(label: str) -> str:
     return label.replace('"', "#quot;")
+
+
+# ツールチップに表示する計算式の最大文字数 (超過分は省略)
+_TOOLTIP_FORMULA_LIMIT = 160
+
+_BLOCK_COMMENT_PATTERN = re.compile(r"/\*.*?\*/", re.DOTALL)
+_LINE_COMMENT_PATTERN = re.compile(r"//[^\r\n]*")
+
+
+def _tooltip_text(display_name: str, formula: str) -> str:
+    """マウスオーバー時のツールチップ文字列 (フィールド名: 計算式)。
+
+    ツールチップは改行を表示できないため、コメントを除いて 1 行に平坦化する。
+    """
+    without_comments = _LINE_COMMENT_PATTERN.sub(
+        " ", _BLOCK_COMMENT_PATTERN.sub(" ", formula)
+    )
+    flattened = " ".join(without_comments.split())
+    if len(flattened) > _TOOLTIP_FORMULA_LIMIT:
+        flattened = flattened[: _TOOLTIP_FORMULA_LIMIT - 1] + "…"
+    if not flattened:
+        return _escape(f"{display_name} の詳細へ")
+    return _escape(f"{display_name}: {flattened}")
