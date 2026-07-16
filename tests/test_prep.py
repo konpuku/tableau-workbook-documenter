@@ -199,6 +199,78 @@ class TestExtractOnlyFallback:
         text = "\n".join(render_field_list_chapter(workbook))
         assert "| オーダー | オーダー | 地域 | string |" in text
 
+    def test_線がない場合はデータモデル図に列一覧が出る(self) -> None:
+        from twbdoc.model import Workbook, WorkbookMeta
+        from twbdoc.renderers.datasources import render_datasources_prep
+
+        root = ET.fromstring(EXTRACT_ONLY_TWB)
+        workbook = Workbook(
+            meta=WorkbookMeta(source_file="x.twbx"),
+            datasources=parse_datasources(root),
+        )
+        text = "\n".join(render_datasources_prep(workbook, {}))
+        assert "#### データモデル図" in text
+        assert '"Order ID<br>Sales"' in text
+
+    def test_object_graph_なしでも_metadata_からテーブル枠を描く(self) -> None:
+        from twbdoc.model import Workbook, WorkbookMeta
+        from twbdoc.renderers.datasources import render_datasources_prep
+
+        root = ET.fromstring(NO_OBJECT_GRAPH_TWB)
+        workbook = Workbook(
+            meta=WorkbookMeta(source_file="x.twbx"),
+            datasources=parse_datasources(root),
+        )
+        text = "\n".join(render_datasources_prep(workbook, {}))
+        assert 'subgraph lt0 ["オーダー"]' in text
+        assert '"地域"' in text
+
+    def test_複数テーブルで線がない場合は注記が出る(self) -> None:
+        from twbdoc.model import (
+            Datasource,
+            LogicalTable,
+            TableColumn,
+            Workbook,
+            WorkbookMeta,
+        )
+        from twbdoc.renderers.datasources import (
+            NO_EDGES_NOTE,
+            render_datasources_prep,
+        )
+
+        workbook = Workbook(
+            meta=WorkbookMeta(source_file="x.twbx"),
+            datasources=(
+                Datasource(
+                    name="ds",
+                    logical_tables=(
+                        LogicalTable(
+                            object_id="A",
+                            caption="A",
+                            columns=(TableColumn(name="id"),),
+                        ),
+                        LogicalTable(
+                            object_id="B",
+                            caption="B",
+                            columns=(TableColumn(name="code"),),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        text = "\n".join(render_datasources_prep(workbook, {}))
+        assert NO_EDGES_NOTE in text
+
+    def test_列が多い場合は省略表示になる(self) -> None:
+        from twbdoc.model import TableColumn
+        from twbdoc.renderers.datasources import _column_list_label
+
+        columns = tuple(TableColumn(name=f"col{i}") for i in range(13))
+        label = _column_list_label(columns)
+        assert "…他 3 列" in label
+        assert "col9" in label
+        assert "col10" not in label
+
 
 class TestRenderExpression:
     def test_単純な等式(self) -> None:

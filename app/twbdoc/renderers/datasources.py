@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from ..model import Datasource, Relation, Workbook
+from ..model import Datasource, Relation, TableColumn, Workbook
 from ..sampler import SampleResult, find_values
 from .filters import describe_filter, filter_kind, filter_target
 from .tables import table as _table
@@ -48,6 +48,13 @@ DATA_MODEL_LEGEND = (
     "枠内の実線 = 結合 (ラベルは結合種別と条件) / 内側の枠 = ユニオン / "
     "「キー:」 = リレーションシップで使用するキー項目"
 )
+
+NO_EDGES_NOTE = (
+    "- リレーションシップ・結合の定義がワークブックに残っていないため、"
+    "テーブルと列の構成のみを表示しています"
+)
+
+_MAX_DIAGRAM_COLUMNS = 10
 
 
 def render_datasources_prep(
@@ -178,6 +185,7 @@ def _render_data_model(
     counter = {"node": 0, "sub": 0}
     body: list[str] = []
     sub_ids: dict[str, str] = {}
+    has_edges = _has_data_model_edges(datasource)
 
     for logical_table in datasource.logical_tables:
         sub_id = f"lt{counter['sub']}"
@@ -193,6 +201,13 @@ def _render_data_model(
             key_id = f"k{counter['node']}"
             counter["node"] += 1
             body.append(f'        {key_id}[/"{key_label}"/]')
+        if not has_edges and logical_table.columns:
+            # 線の情報が無いワークブックでは列一覧を枠内に表示して情報量を補う
+            column_id = f"c{counter['node']}"
+            counter["node"] += 1
+            body.append(
+                f'        {column_id}["{_column_list_label(logical_table.columns)}"]'
+            )
         body.append("    end")
 
     for relationship in datasource.relationships:
@@ -205,9 +220,8 @@ def _render_data_model(
 
     if datasource.relation is not None:
         if not datasource.logical_tables:
-            if not _has_join_or_union(datasource.relation):
-                return []
-            _emit_relation(datasource.relation, body, counter, indent="    ")
+            if _has_join_or_union(datasource.relation):
+                _emit_relation(datasource.relation, body, counter, indent="    ")
         else:
             # 論理テーブルに属さないユニオン (物理層のみに現れるもの) も描画する
             covered = {
@@ -221,10 +235,15 @@ def _render_data_model(
                     _emit_relation(union, body, counter, indent="    ")
 
     if not body:
+        # object-graph を持たない形式では metadata-record からテーブル枠+列を描く
+        body.extend(_metadata_table_boxes(datasource.metadata_columns, counter))
+    if not body:
         return []
     lines = ["#### データモデル図", "", "```mermaid", "flowchart LR"]
     lines.extend(body)
     lines.extend(["```", "", DATA_MODEL_LEGEND, ""])
+    if not has_edges and counter["sub"] > 1:
+        lines.append(NO_EDGES_NOTE)
     for caption, unions in union_map.items():
         for union in unions:
             members = ", ".join(_collect_table_names(union))
@@ -236,7 +255,7 @@ def _render_data_model(
             f"- 各テーブルの全フィールドは"
             f" [テーブル別フィールド一覧](#{field_list_anchor}) を参照"
         )
-    if union_map or field_list_anchor:
+    if lines[-1] != "":
         lines.append("")
     return lines
 
@@ -380,6 +399,51 @@ def _has_join_or_union(relation: Relation) -> bool:
     if relation.rel_type in ("join", "union"):
         return True
     return any(_has_join_or_union(child) for child in relation.children)
+
+
+def _has_data_model_edges(datasource: Datasource) -> bool:
+    """データモデル図に線 (リレーションシップ・結合・ユニオン) が描かれるか。"""
+    if datasource.relationships:
+        return True
+    if datasource.relation is not None and _has_join_or_union(
+        datasource.relation
+    ):
+        return True
+    return any(
+        logical_table.relation is not None
+        and _has_join_or_union(logical_table.relation)
+        for logical_table in datasource.logical_tables
+    )
+
+
+def _column_list_label(columns: tuple[TableColumn, ...]) -> str:
+    """枠内に表示する列一覧のラベル (多すぎる場合は省略)。"""
+    names = [column.name for column in columns]
+    shown = names[:_MAX_DIAGRAM_COLUMNS]
+    if len(names) > _MAX_DIAGRAM_COLUMNS:
+        shown.append(f"…他 {len(names) - _MAX_DIAGRAM_COLUMNS} 列")
+    return _escape_label("<br>".join(shown))
+
+
+def _metadata_table_boxes(
+    columns: tuple[TableColumn, ...], counter: dict[str, int]
+) -> list[str]:
+    """metadata-record の列をテーブルごとの枠+列一覧として描く。"""
+    groups: dict[str, list[TableColumn]] = {}
+    for column in columns:
+        groups.setdefault(column.table or "(テーブル名不明)", []).append(column)
+    lines: list[str] = []
+    for table_name, table_columns in groups.items():
+        sub_id = f"lt{counter['sub']}"
+        counter["sub"] += 1
+        lines.append(f'    subgraph {sub_id} ["{_escape_label(table_name)}"]')
+        column_id = f"c{counter['node']}"
+        counter["node"] += 1
+        lines.append(
+            f'        {column_id}["{_column_list_label(tuple(table_columns))}"]'
+        )
+        lines.append("    end")
+    return lines
 
 
 def _emit_relation(

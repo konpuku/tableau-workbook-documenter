@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from .. import __version__
 from ..model import Workbook
 from ..sampler import SampleResult
 from .actions import render_actions
@@ -81,6 +82,7 @@ def render(
         "",
         f"- 生成日時: {timestamp}",
         f"- 元ファイル: {workbook.meta.source_file}",
+        f"- 生成ツール: tableau-workbook-documenter v{__version__}",
         "",
     ]
     lines.extend(_render_toc(body))

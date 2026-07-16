@@ -263,6 +263,11 @@ MINIMAL_TWB = """<?xml version='1.0' encoding='utf-8' ?>
       <format attr='color' value='#000000' />
     </style-rule>
   </style>
+  <thumbnails>
+    <thumbnail height='192' name='売上ダッシュボード' width='192'>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==</thumbnail>
+    <thumbnail height='192' name='売上推移' width='192'>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==</thumbnail>
+    <thumbnail height='192' name='壊れたサムネイル' width='192'>@@invalid-base64@@</thumbnail>
+  </thumbnails>
   <actions>
     <action caption='ハイライト1' name='[Action1_ABC]'>
       <activation auto-clear='true' type='on-select' />
