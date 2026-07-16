@@ -52,7 +52,7 @@ def render(
     """設計書 Markdown 文字列を生成する。"""
     timestamp = (generated_at or datetime.now()).strftime("%Y-%m-%d %H:%M")
     title = Path(workbook.meta.source_file).stem or workbook.meta.source_file
-    caption_map = _build_caption_map(workbook)
+    caption_map = build_caption_map(workbook)
     field_list_anchors = _build_field_list_anchors(workbook)
 
     body: list[str] = []
@@ -133,7 +133,7 @@ def _build_field_list_anchors(workbook: Workbook) -> dict[str, str]:
     }
 
 
-def _build_caption_map(workbook: Workbook) -> dict[str, str]:
+def build_caption_map(workbook: Workbook) -> dict[str, str]:
     """内部名 -> 表示名のマップ (ゾーンのフィールド参照可読化に使用)。"""
     caption_map: dict[str, str] = {}
     for datasource in workbook.datasources:

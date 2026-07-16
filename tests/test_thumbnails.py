@@ -69,7 +69,20 @@ class TestOutputFolderLayout:
         assert "![売上ダッシュボード](images/売上ダッシュボード.png)" in content
         assert f"- 生成ツール: tableau-workbook-documenter v{__version__}" in content
 
-    def test_サムネイルなしでもimagesフォルダを作らない(
+    def test_サムネイル注釈とレイアウト簡略図が載る(
+        self, tmp_path: Path
+    ) -> None:
+        doc_dir = self._run(tmp_path)
+        content = (doc_dir / "テスト_設計書.md").read_text(encoding="utf-8-sig")
+        assert "※ 画像はサムネイルであり、実際のダッシュボード全体画像ではありません。" in content
+        assert "![売上ダッシュボード レイアウト](images/layout_売上ダッシュボード.svg)" in content
+        svg_path = doc_dir / "images" / "layout_売上ダッシュボード.svg"
+        assert svg_path.is_file()
+        assert svg_path.read_text(encoding="utf-8").startswith("<svg ")
+        # レイアウト図がある場合は Mermaid のゾーン図は出さない
+        assert "graph TD" not in content
+
+    def test_サムネイルなしではPNGを出力しない(
         self, tmp_path: Path
     ) -> None:
         twb = tmp_path / "画像なし.twb"
@@ -82,5 +95,8 @@ class TestOutputFolderLayout:
         assert main([str(twb), "--no-sample"]) == 0
         date_label = datetime.now().strftime("%Y%m%d")
         doc_dir = tmp_path / f"画像なし_設計書_{date_label}"
-        assert (doc_dir / "画像なし_設計書.md").is_file()
-        assert not (doc_dir / "images").exists()
+        content = (doc_dir / "画像なし_設計書.md").read_text(encoding="utf-8-sig")
+        assert not list((doc_dir / "images").glob("*.png"))
+        assert "サムネイルであり" not in content
+        # レイアウト簡略図はサムネイルが無くても生成される
+        assert list((doc_dir / "images").glob("layout_*.svg"))

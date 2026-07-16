@@ -18,6 +18,14 @@ from .zones import render_zone_list, render_zone_mermaid
 
 NOT_APPLICABLE = "(該当なし)"
 
+THUMBNAIL_NOTE = (
+    "※ 画像はサムネイルであり、実際のダッシュボード全体画像ではありません。"
+)
+LAYOUT_IMAGE_NOTE = (
+    "※ レイアウト簡略図: 各要素の位置・サイズ比率を twb の定義から再現したものです "
+    "(実際の描画内容は含みません)。"
+)
+
 DATATYPE_LABELS = {
     "integer": "整数",
     "real": "数値 (小数)",
@@ -76,12 +84,23 @@ def render_dashboards(
         if dashboard.image_path:
             lines.append("")
             lines.append(f"![{dashboard.name}]({dashboard.image_path})")
+            lines.append("")
+            lines.append(THUMBNAIL_NOTE)
         lines.append("")
         lines.append("#### レイアウト構成")
         lines.append("")
-        lines.extend(render_zone_list(dashboard.zones, caption_map))
+        lines.extend(
+            render_zone_list(dashboard.zones, caption_map, dashboard.size)
+        )
         lines.append("")
-        lines.extend(render_zone_mermaid(dashboard.zones, caption_map))
+        if dashboard.layout_image_path:
+            lines.append(
+                f"![{dashboard.name} レイアウト]({dashboard.layout_image_path})"
+            )
+            lines.append("")
+            lines.append(LAYOUT_IMAGE_NOTE)
+        else:
+            lines.extend(render_zone_mermaid(dashboard.zones, caption_map))
         lines.append("")
     return lines
 

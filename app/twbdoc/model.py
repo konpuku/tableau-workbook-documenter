@@ -324,12 +324,17 @@ class DashboardSize:
 
 @dataclass(frozen=True)
 class Dashboard:
-    """ダッシュボード。image_path は将来の画像埋め込み用。"""
+    """ダッシュボード。
+
+    image_path はプレビュー画像 (サムネイル)、
+    layout_image_path はレイアウト簡略図 (SVG) の相対パス。
+    """
 
     name: str
     size: DashboardSize = field(default_factory=DashboardSize)
     zones: tuple[Zone, ...] = ()
     image_path: str | None = None
+    layout_image_path: str | None = None
 
 
 @dataclass(frozen=True)

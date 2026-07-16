@@ -23,6 +23,8 @@ from .loader import load_workbook_xml
 from .model import Workbook
 from .parsers import parse_workbook
 from .renderers import render
+from .renderers.layout_svg import render_layout_svg
+from .renderers.markdown import build_caption_map
 from .sampler import collect_samples
 from .thumbnails import extract_thumbnails, safe_filename
 
@@ -81,6 +83,7 @@ def _process_file(
         workbook = _attach_dashboard_images(
             workbook, extract_thumbnails(root), doc_dir
         )
+        workbook = _attach_layout_images(workbook, doc_dir)
         markdown = render(workbook, generated_at=generated_at, samples=samples)
         output_path = doc_dir / f"{input_path.stem}{OUTPUT_SUFFIX}.md"
         _write_output(output_path, markdown)
@@ -137,12 +140,36 @@ def _attach_dashboard_images(
     return replace(workbook, dashboards=tuple(dashboards))
 
 
-def _unique_filename(base: str, used_names: set[str]) -> str:
+def _attach_layout_images(workbook: Workbook, doc_dir: Path) -> Workbook:
+    """ダッシュボードごとのレイアウト簡略図 (SVG) を書き出してパスを設定する。"""
+    if not workbook.dashboards:
+        return workbook
+    caption_map = build_caption_map(workbook)
+    used_names: set[str] = set()
+    dashboards = []
+    for dashboard in workbook.dashboards:
+        svg = render_layout_svg(dashboard, caption_map)
+        if svg is None:
+            dashboards.append(dashboard)
+            continue
+        filename = _unique_filename(
+            f"layout_{safe_filename(dashboard.name)}", used_names, suffix=".svg"
+        )
+        _write_image(doc_dir / IMAGES_DIR_NAME / filename, svg.encode("utf-8"))
+        dashboards.append(
+            replace(dashboard, layout_image_path=f"{IMAGES_DIR_NAME}/{filename}")
+        )
+    return replace(workbook, dashboards=tuple(dashboards))
+
+
+def _unique_filename(
+    base: str, used_names: set[str], suffix: str = ".png"
+) -> str:
     """サニタイズ後の名前衝突を連番で回避する。"""
-    candidate = f"{base}.png"
+    candidate = f"{base}{suffix}"
     counter = 2
     while candidate in used_names:
-        candidate = f"{base}_{counter}.png"
+        candidate = f"{base}_{counter}{suffix}"
         counter += 1
     used_names.add(candidate)
     return candidate
