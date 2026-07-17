@@ -53,6 +53,11 @@ class TestOutputFolderLayout:
         assert doc_dir.is_dir()
         markdown_path = doc_dir / "テスト_設計書.md"
         assert markdown_path.is_file()
+        html_path = doc_dir / "テスト_設計書.html"
+        assert html_path.is_file()
+        html = html_path.read_text(encoding="utf-8")
+        assert "mermaid.initialize" in html
+        assert 'src="data:image/png;base64,' in html
         image_path = doc_dir / "images" / "売上ダッシュボード.png"
         assert image_path.is_file()
         assert image_path.read_bytes().startswith(PNG_MAGIC)

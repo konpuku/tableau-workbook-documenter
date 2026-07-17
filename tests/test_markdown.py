@@ -42,9 +42,15 @@ class TestRender:
             "## 9. 表計算設定",
             "## 10. 別名一覧",
             "## 11. 書式設定",
-            "## 12. テーブル別フィールド一覧 (参考)",
+            "## 12. 健康診断",
+            "## 13. テーブル別フィールド一覧 (参考)",
         ]:
             assert heading in markdown, heading
+
+    def test_概要に健康診断の警告数が出る(self, minimal_root: ET.Element) -> None:
+        markdown = _render_minimal(minimal_root)
+        assert "| 健康診断の警告 | ⚠ " in markdown
+        assert "[12. 健康診断](#12-健康診断)" in markdown
 
     def test_目次にリンクが出る(self, minimal_root: ET.Element) -> None:
         markdown = _render_minimal(minimal_root)
@@ -91,7 +97,7 @@ class TestRender:
         self, minimal_root: ET.Element
     ) -> None:
         markdown = _render_minimal(minimal_root)
-        assert "[テーブル別フィールド一覧](#121-スーパーストア)" in markdown
+        assert "[テーブル別フィールド一覧](#131-スーパーストア)" in markdown
 
     def test_アクション章と表計算章が出る(
         self, minimal_root: ET.Element

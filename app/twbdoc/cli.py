@@ -19,10 +19,13 @@ from pathlib import Path
 
 from . import __version__
 from .errors import InvalidFileError, ParseError, TwbDocError
+import base64
+
 from .loader import load_workbook_xml
 from .model import Workbook
 from .parsers import parse_workbook
 from .renderers import render
+from .renderers.html import render_html
 from .renderers.layout_svg import render_layout_svg
 from .renderers.markdown import build_caption_map
 from .sampler import collect_samples
@@ -87,6 +90,16 @@ def _process_file(
         markdown = render(workbook, generated_at=generated_at, samples=samples)
         output_path = doc_dir / f"{input_path.stem}{OUTPUT_SUFFIX}.md"
         _write_output(output_path, markdown)
+        html = render_html(
+            markdown,
+            title=f"{input_path.stem} 設計書",
+            load_image=_image_loader(doc_dir),
+        )
+        _write_output(
+            doc_dir / f"{input_path.stem}{OUTPUT_SUFFIX}.html",
+            html,
+            encoding="utf-8",
+        )
     except InvalidFileError as error:
         print(f"[エラー] {error}", file=sys.stderr)
         return EXIT_INPUT_ERROR
@@ -185,10 +198,31 @@ def _write_image(path: Path, data: bytes) -> None:
         ) from error
 
 
-def _write_output(output_path: Path, markdown: str) -> None:
+_IMAGE_MIME_TYPES = {".png": "image/png", ".svg": "image/svg+xml"}
+
+
+def _image_loader(doc_dir: Path):
+    """HTML 埋め込み用に相対画像パスを data URI へ変換するローダー。"""
+
+    def load(src: str) -> str | None:
+        mime = _IMAGE_MIME_TYPES.get(Path(src).suffix.lower())
+        if mime is None:
+            return None
+        try:
+            data = (doc_dir / src).read_bytes()
+        except OSError:
+            return None
+        return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+
+    return load
+
+
+def _write_output(
+    output_path: Path, content: str, encoding: str = "utf-8-sig"
+) -> None:
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(markdown, encoding="utf-8-sig")
+        output_path.write_text(content, encoding=encoding)
     except OSError as error:
         raise InvalidFileError(
             f"出力ファイルを書き込めません: {output_path} ({error})"

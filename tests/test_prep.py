@@ -423,8 +423,8 @@ class TestPrepRendering:
 
         workbook = parse_workbook(minimal_root, "test.twbx")
         text = "\n".join(render_field_list_chapter(workbook))
-        assert "## 12. テーブル別フィールド一覧 (参考)" in text
-        assert "### 12.1 スーパーストア" in text
+        assert "## 13. テーブル別フィールド一覧 (参考)" in text
+        assert "### 13.1 スーパーストア" in text
         assert "| オーダー+関係者 | 関係者 | 担当者 | string |" in text
         assert "| 返品 | 返品 | 返品済み | boolean |" in text
         # 2章側には含まれない

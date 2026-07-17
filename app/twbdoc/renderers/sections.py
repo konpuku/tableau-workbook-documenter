@@ -47,8 +47,10 @@ ROLE_LABELS = {
 }
 
 
-def render_overview(workbook: Workbook, number: int = 1) -> list[str]:
-    """ワークブック概要章。"""
+def render_overview(
+    workbook: Workbook, number: int = 1, health_summary: str = ""
+) -> list[str]:
+    """ワークブック概要章。health_summary は健康診断の警告数セル。"""
     meta = workbook.meta
     rows = [
         ("元ファイル", meta.source_file),
@@ -62,6 +64,8 @@ def render_overview(workbook: Workbook, number: int = 1) -> list[str]:
         ("計算フィールド数", str(len(workbook.calculated_fields))),
         ("ダッシュボードアクション数", str(len(workbook.actions))),
     ]
+    if health_summary:
+        rows.append(("健康診断の警告", health_summary))
     lines = [f"## {number}. ワークブック概要", ""]
     lines.extend(_table(("項目", "値"), rows))
     return lines

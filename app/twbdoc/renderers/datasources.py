@@ -312,7 +312,7 @@ def field_list_datasources(workbook: Workbook) -> tuple[Datasource, ...]:
 def render_field_list_chapter(
     workbook: Workbook,
     samples: SampleResult | None = None,
-    number: int = 12,
+    number: int = 13,
 ) -> list[str]:
     """テーブル別フィールド一覧章 (参考)。設計書の巻末に全フィールドを別掲する。
 

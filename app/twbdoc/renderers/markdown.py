@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .. import __version__
+from ..health import diagnose, warning_count
 from ..model import Workbook
 from ..sampler import SampleResult
 from .actions import render_actions
@@ -18,6 +19,7 @@ from .datasources import (
     render_datasources_prep,
     render_field_list_chapter,
 )
+from .health import render_health
 from .sections import (
     render_aliases,
     render_calculated_fields,
@@ -41,7 +43,8 @@ CH_CALCULATIONS = 8
 CH_TABLE_CALCS = 9
 CH_ALIASES = 10
 CH_STYLES = 11
-CH_FIELD_LIST = 12
+CH_HEALTH = 12
+CH_FIELD_LIST = 13
 
 
 def render(
@@ -54,9 +57,14 @@ def render(
     title = Path(workbook.meta.source_file).stem or workbook.meta.source_file
     caption_map = build_caption_map(workbook)
     field_list_anchors = _build_field_list_anchors(workbook)
+    findings = diagnose(workbook)
+    health_summary = (
+        f"⚠ {warning_count(findings)} 件 "
+        f"([{CH_HEALTH}. 健康診断](#{CH_HEALTH}-健康診断) を参照)"
+    )
 
     body: list[str] = []
-    body.extend(render_overview(workbook, CH_OVERVIEW))
+    body.extend(render_overview(workbook, CH_OVERVIEW, health_summary))
     body.extend(
         render_datasources_prep(
             workbook, caption_map, CH_DATASOURCES, field_list_anchors
@@ -75,6 +83,7 @@ def render(
     body.extend(render_table_calcs(workbook, caption_map, CH_TABLE_CALCS))
     body.extend(render_aliases(workbook.datasources, CH_ALIASES))
     body.extend(render_styles(workbook.style_rules, CH_STYLES))
+    body.extend(render_health(findings, CH_HEALTH))
     body.extend(render_field_list_chapter(workbook, samples, CH_FIELD_LIST))
 
     lines: list[str] = [
