@@ -32,21 +32,34 @@ if ((Test-Path $pythonDir) -and -not $Force) {
     Expand-Archive -Path $zipPath -DestinationPath $pythonDir
     Remove-Item $zipPath
 
-    # ._pth を書き換えて twbdoc (app フォルダ) と site-packages を import 可能にする
-    $pthFile = Get-ChildItem -Path $pythonDir -Filter 'python*._pth' | Select-Object -First 1
-    if ($null -eq $pthFile) {
-        Write-Host '[エラー] ._pth ファイルが見つかりません。' -ForegroundColor Red
-        exit 1
-    }
-    $zipName = (Get-ChildItem -Path $pythonDir -Filter 'python*.zip' | Select-Object -First 1).Name
-    @(
-        $zipName
-        '.'
-        'Lib\site-packages'
-        '..'
-    ) | Set-Content -Path $pthFile.FullName -Encoding ascii
     Write-Host "[完了] 同梱 Python を配置しました: $pythonDir" -ForegroundColor Green
 }
+
+# 標準ライブラリを zip から展開する (社内のファイル暗号化ソフト対策)
+#   embeddable 版は標準ライブラリを pythonXXX.zip 1 個にまとめているが、
+#   .zip を暗号化する社内ツールがある環境では Python が起動できなくなる
+#   (Fatal Python error: Failed to import encodings module)。
+#   Lib フォルダへ展開して zip を削除することでこれを回避する。
+$stdlibZip = Get-ChildItem -Path $pythonDir -Filter 'python*.zip' | Select-Object -First 1
+if ($null -ne $stdlibZip) {
+    Write-Host '標準ライブラリを展開しています (ファイル暗号化ソフト対策)...'
+    Expand-Archive -Path $stdlibZip.FullName -DestinationPath (Join-Path $pythonDir 'Lib') -Force
+    Remove-Item $stdlibZip.FullName
+    Write-Host '[完了] 標準ライブラリを Lib フォルダへ展開しました (.zip は削除)。' -ForegroundColor Green
+}
+
+# ._pth を書き換えて標準ライブラリ (Lib) と twbdoc (app フォルダ) を import 可能にする
+$pthFile = Get-ChildItem -Path $pythonDir -Filter 'python*._pth' | Select-Object -First 1
+if ($null -eq $pthFile) {
+    Write-Host '[エラー] ._pth ファイルが見つかりません。' -ForegroundColor Red
+    exit 1
+}
+@(
+    'Lib'
+    '.'
+    'Lib\site-packages'
+    '..'
+) | Set-Content -Path $pthFile.FullName -Encoding ascii
 
 if ($WithHyperApi) {
     $sitePackages = Join-Path $pythonDir 'Lib\site-packages'
@@ -76,6 +89,21 @@ if ($WithHyperApi) {
         }
         Write-Host '[完了] tableauhyperapi を同梱しました (.hyper のサンプル値取得が有効になります)。' -ForegroundColor Green
     }
+}
+
+# 暗号化対象になりやすい .txt を配布物から一掃する (ライセンス・メタ情報で実行には不要)
+#   社内のファイル暗号化ソフトが .txt を暗号化しても Python の動作に影響しないよう、
+#   拡張子を .dat に変更して中身はそのまま残す。
+$renamedCount = 0
+foreach ($textFile in Get-ChildItem -Path $pythonDir -Recurse -File -Filter '*.txt') {
+    $target = [IO.Path]::ChangeExtension($textFile.FullName, '.dat')
+    if (-not (Test-Path $target)) {
+        Rename-Item -Path $textFile.FullName -NewName ([IO.Path]::GetFileName($target))
+        $renamedCount++
+    }
+}
+if ($renamedCount -gt 0) {
+    Write-Host "[完了] .txt $renamedCount 件を .dat にリネームしました (ファイル暗号化ソフト対策)。" -ForegroundColor Green
 }
 
 Write-Host ''

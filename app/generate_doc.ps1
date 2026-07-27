@@ -47,6 +47,28 @@ if ($null -eq $python) {
 
 if ($python -like '*\python\python.exe') {
     Write-Host "同梱の Python を使用します: $python"
+    # 同梱 Python が壊れていないか事前に確認する。
+    # 社内のファイル暗号化ソフトが app\python 内のファイルを暗号化すると
+    # 「Failed to import encodings module」で起動できなくなるため、
+    # 生のエラーを出す代わりに原因と対処方法を日本語で案内する。
+    $stdlibOk = $false
+    try {
+        $null = & $python -c 'import encodings' 2>&1
+        $stdlibOk = ($LASTEXITCODE -eq 0)
+    } catch {
+        $stdlibOk = $false
+    }
+    if (-not $stdlibOk) {
+        $pythonDir = Join-Path $scriptDir 'python'
+        Write-Host '[エラー] 同梱 Python の標準ライブラリを読み込めません。' -ForegroundColor Red
+        Write-Host '  ファイル暗号化ソフト (社内の情報漏洩対策ツール等) により、'
+        Write-Host '  次のフォルダ内のファイルが変更された可能性があります:'
+        Write-Host "    $pythonDir"
+        Write-Host '  対処方法 (いずれか):'
+        Write-Host '  1. IT 管理者に、上記フォルダを暗号化・DRM の対象外にするよう相談する'
+        Write-Host '  2. 配布元の zip を別のフォルダに展開し直してから実行する'
+        exit 4
+    }
 }
 
 if (-not $Files -or $Files.Count -eq 0) {

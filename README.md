@@ -47,7 +47,8 @@ python -m twbdoc "C:\path\to\ワークブック.twbx"
 python -m twbdoc book1.twbx book2.twb --output C:\docs  # 複数指定・出力先指定
 ```
 
-終了コード: `0` = 成功 / `1` = 解析エラー / `2` = 入力エラー / `3` = Python 未検出 (bat/ps1)
+終了コード: `0` = 成功 / `1` = 解析エラー / `2` = 入力エラー / `3` = Python 未検出 (bat/ps1) /
+`4` = 同梱 Python の標準ライブラリを読み込めない (bat/ps1。下記「ファイル暗号化ソフトを使っている環境で」を参照)
 
 ## Python 未導入の PC への配布 (同梱 Python)
 
@@ -78,6 +79,20 @@ cd twb_doc_generator\app
 `dist\` に配布用 zip が生成されます。
 
 いずれの方法も再配布は合法です (Python は PSF License、tableauhyperapi は Apache-2.0)。
+
+### ファイル暗号化ソフトを使っている環境で
+
+社内の情報漏洩対策ソフト (ファイル暗号化・DRM) が `.zip` や `.txt` を暗号化する設定になっていると、
+同梱 Python が起動できなくなることがあります
+(`Fatal Python error: Failed to import encodings module`)。
+
+本ツールでは対策として、同梱 Python から**暗号化対象になりやすい拡張子を排除**しています。
+
+- 標準ライブラリは `pythonXXX.zip` ではなく `python\Lib\` フォルダへ展開して同梱
+- ライセンス等の `.txt` は `.dat` にリネーム (中身はテキストのまま。メモ帳等で読めます)
+
+それでも起動できない場合 (終了コード `4`)、`.pyc` や `.dll` まで暗号化対象になっている可能性があります。
+**IT 管理者に、ツールのフォルダを暗号化・DRM の対象外にするようご相談ください。**
 
 ## 出力される設計書の内容
 
