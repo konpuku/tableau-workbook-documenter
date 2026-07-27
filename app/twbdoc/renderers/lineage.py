@@ -8,13 +8,20 @@ from __future__ import annotations
 
 import re
 
+from ..i18n import JA, Translator
 from ..model import Workbook
 
-LEGEND = "凡例: 長方形 = 計算フィールド / 六角形 = パラメーター / 丸角 = データソース列"
+LEGEND = (
+    "凡例: 長方形 = 計算フィールド / 六角形 = パラメーター / 丸角 = データソースのフィールド",
+    "Legend: rectangle = calculated field / hexagon = parameter / "
+    "rounded = data source field",
+)
 
 
 def render_lineage_mermaid(
-    workbook: Workbook, anchors: dict[str, str] | None = None
+    workbook: Workbook,
+    anchors: dict[str, str] | None = None,
+    t: Translator = JA,
 ) -> list[str]:
     """ワークブック全体の計算フィールド依存関係図の行リストを返す。
 
@@ -75,6 +82,7 @@ def render_lineage_mermaid(
         tooltip = _tooltip_text(
             calc_names.get(internal_name, internal_name),
             formulas.get(internal_name, ""),
+            t,
         )
         click_lines.append(f'    click {node_id} "#{anchor}" "{tooltip}"')
         link_items.append(f"[{calc_names.get(internal_name, internal_name)}](#{anchor})")
@@ -83,14 +91,19 @@ def render_lineage_mermaid(
         + node_lines
         + edge_lines
         + click_lines
-        + ["```", "", LEGEND]
+        + ["```", "", t(*LEGEND)]
     )
     if link_items:
         lines.extend(
             [
                 "",
-                "各計算フィールドの詳細: " + " / ".join(link_items),
-                "(対応ビューアでは図中のノードをクリックしても移動できます)",
+                t("各計算フィールドの詳細: ", "Details: ")
+                + " / ".join(link_items),
+                t(
+                    "(対応ビューアでは図中のノードをクリックしても移動できます)",
+                    "(In supported viewers you can also click a node "
+                    "in the diagram.)",
+                ),
             ]
         )
     return lines
@@ -107,7 +120,9 @@ _BLOCK_COMMENT_PATTERN = re.compile(r"/\*.*?\*/", re.DOTALL)
 _LINE_COMMENT_PATTERN = re.compile(r"//[^\r\n]*")
 
 
-def _tooltip_text(display_name: str, formula: str) -> str:
+def _tooltip_text(
+    display_name: str, formula: str, t: Translator = JA
+) -> str:
     """マウスオーバー時のツールチップ文字列 (フィールド名: 計算式)。
 
     ツールチップは改行を表示できないため、コメントを除いて 1 行に平坦化する。
@@ -119,5 +134,5 @@ def _tooltip_text(display_name: str, formula: str) -> str:
     if len(flattened) > _TOOLTIP_FORMULA_LIMIT:
         flattened = flattened[: _TOOLTIP_FORMULA_LIMIT - 1] + "…"
     if not flattened:
-        return _escape(f"{display_name} の詳細へ")
+        return _escape(t(f"{display_name} の詳細へ", f"Go to {display_name}"))
     return _escape(f"{display_name}: {flattened}")

@@ -12,17 +12,18 @@ from dataclasses import replace
 
 from ..model import DashboardAction
 
+# コマンド -> アクション種別のキー (表示名はレンダラーが言語ごとに解決する)
 COMMAND_KINDS = {
-    "tsc:brush": "ハイライト",
-    "tsc:filter": "フィルター",
-    "tsc:tsl-filter": "フィルター",
-    "tsc:url": "URL を開く",
-    "tsc:navigate": "シートに移動",
+    "tsc:brush": "highlight",
+    "tsc:filter": "filter",
+    "tsc:tsl-filter": "filter",
+    "tsc:url": "url",
+    "tsc:navigate": "sheet",
 }
 
 _SPECIAL_ACTION_KINDS = {
-    "edit-group-action": "セットの値を変更",
-    "edit-parameter-action": "パラメーターの値を変更",
+    "edit-group-action": "set",
+    "edit-parameter-action": "parameter",
 }
 
 # 表示済みの列と重複するため詳細から除外するパラメーター
@@ -52,7 +53,7 @@ def _parse_command_action(element: ET.Element) -> DashboardAction:
     command_name = "" if command is None else command.get("command", "")
     params = _collect_params(element)
     base = _parse_common(
-        element, COMMAND_KINDS.get(command_name, command_name or "-")
+        element, COMMAND_KINDS.get(command_name, command_name or "")
     )
     return replace(base, fields=params.get("field-captions", ""))
 

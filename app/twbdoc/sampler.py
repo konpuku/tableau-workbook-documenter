@@ -19,6 +19,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .i18n import JA, Translator
+
 SAMPLE_COUNT = 5
 MAX_VALUE_LENGTH = 30
 MAX_CSV_SCAN_ROWS = 10000
@@ -43,20 +45,32 @@ class SampleResult:
     notes: tuple[str, ...] = ()
 
 
-def collect_samples(twbx_path: Path) -> SampleResult:
+def collect_samples(twbx_path: Path, t: Translator = JA) -> SampleResult:
     """twbx 内の全データファイルからサンプル値を収集する。"""
     if twbx_path.suffix.lower() != ".twbx":
         return SampleResult(
-            notes=("twb 単体のためデータが同梱されておらず、サンプル値は取得できません",)
+            notes=(
+                t(
+                    "twb 単体のためデータが同梱されておらず、"
+                    "サンプル値は取得できません",
+                    "This is a .twb file, so no data is bundled and "
+                    "sample values cannot be read",
+                ),
+            )
         )
     tables: list[TableSamples] = []
     notes: list[str] = []
     try:
         with zipfile.ZipFile(twbx_path) as archive:
             for info in archive.infolist():
-                _collect_from_entry(archive, info, tables, notes)
+                _collect_from_entry(archive, info, tables, notes, t)
     except (zipfile.BadZipFile, OSError) as error:
-        notes.append(f"データファイルを読み込めませんでした: {error}")
+        notes.append(
+            t(
+                f"データファイルを読み込めませんでした: {error}",
+                f"Could not read the data files: {error}",
+            )
+        )
     return SampleResult(tables=tuple(tables), notes=tuple(_unique(notes)))
 
 
@@ -83,25 +97,36 @@ def _collect_from_entry(
     info: zipfile.ZipInfo,
     tables: list[TableSamples],
     notes: list[str],
+    t: Translator = JA,
 ) -> None:
+    name = Path(info.filename).name
     suffix = Path(info.filename).suffix.lower()
     if suffix not in (".hyper", ".csv", ".txt", ".xlsx", ".xls"):
         return
     if info.file_size > MAX_DATA_FILE_BYTES:
-        notes.append(f"{Path(info.filename).name}: サイズ超過のためスキップしました")
+        notes.append(
+            t(
+                f"{name}: サイズ超過のためスキップしました",
+                f"{name}: skipped (file too large)",
+            )
+        )
         return
     if suffix == ".xls":
         notes.append(
-            "旧 Excel 形式 (.xls) はサンプル値の取得に対応していません"
+            t(
+                "旧 Excel 形式 (.xls) はサンプル値の取得に対応していません",
+                "Sample values cannot be read from the legacy Excel "
+                "format (.xls)",
+            )
         )
         return
     if suffix == ".hyper":
-        _collect_from_hyper(archive, info, tables, notes)
+        _collect_from_hyper(archive, info, tables, notes, t)
         return
     if suffix == ".xlsx":
-        _collect_from_xlsx(archive, info, tables, notes)
+        _collect_from_xlsx(archive, info, tables, notes, t)
         return
-    _collect_from_csv(archive, info, tables, notes)
+    _collect_from_csv(archive, info, tables, notes, t)
 
 
 def _collect_from_hyper(
@@ -109,13 +134,18 @@ def _collect_from_hyper(
     info: zipfile.ZipInfo,
     tables: list[TableSamples],
     notes: list[str],
+    t: Translator = JA,
 ) -> None:
     try:
         from tableauhyperapi import Connection, HyperProcess, Telemetry
     except ImportError:
         notes.append(
-            "Tableau 抽出 (.hyper) の読み取りには tableauhyperapi の導入が必要です "
-            "(pip install tableauhyperapi)"
+            t(
+                "Tableau 抽出 (.hyper) の読み取りには tableauhyperapi の導入が"
+                "必要です (pip install tableauhyperapi)",
+                "Reading Tableau extracts (.hyper) requires tableauhyperapi "
+                "(pip install tableauhyperapi)",
+            )
         )
         return
     try:
@@ -130,8 +160,12 @@ def _collect_from_hyper(
                 ) as connection:
                     tables.extend(_read_hyper_tables(connection))
     except Exception as error:  # hyper 側の例外型は依存導入時のみ存在するため広く捕捉
+        name = Path(info.filename).name
         notes.append(
-            f"{Path(info.filename).name}: 抽出データの読み取りに失敗しました ({error})"
+            t(
+                f"{name}: 抽出データの読み取りに失敗しました ({error})",
+                f"{name}: failed to read the extract ({error})",
+            )
         )
 
 
@@ -160,6 +194,7 @@ def _collect_from_csv(
     info: zipfile.ZipInfo,
     tables: list[TableSamples],
     notes: list[str],
+    t: Translator = JA,
 ) -> None:
     try:
         raw = archive.read(info.filename)
@@ -185,8 +220,12 @@ def _collect_from_csv(
             )
         )
     except (csv.Error, UnicodeDecodeError, OSError) as error:
+        name = Path(info.filename).name
         notes.append(
-            f"{Path(info.filename).name}: CSV の読み取りに失敗しました ({error})"
+            t(
+                f"{name}: CSV の読み取りに失敗しました ({error})",
+                f"{name}: failed to read the CSV file ({error})",
+            )
         )
 
 
@@ -195,6 +234,7 @@ def _collect_from_xlsx(
     info: zipfile.ZipInfo,
     tables: list[TableSamples],
     notes: list[str],
+    t: Translator = JA,
 ) -> None:
     try:
         data = archive.read(info.filename)
@@ -211,8 +251,12 @@ def _collect_from_xlsx(
                 if table is not None:
                     tables.append(table)
     except (zipfile.BadZipFile, ET.ParseError, OSError) as error:
+        name = Path(info.filename).name
         notes.append(
-            f"{Path(info.filename).name}: Excel の読み取りに失敗しました ({error})"
+            t(
+                f"{name}: Excel の読み取りに失敗しました ({error})",
+                f"{name}: failed to read the Excel file ({error})",
+            )
         )
 
 

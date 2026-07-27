@@ -73,7 +73,7 @@ class TestRenderTableCalcs:
     def test_章とピルごとの設定が出る(self, minimal_root: ET.Element) -> None:
         text = self._render(minimal_root)
         assert "## 9. 表計算設定" in text
-        assert "### 9.1 ピルごとの設定 (シート別)" in text
+        assert "### 9.1 ピルごとの設定 (ワークシート別)" in text
         assert "| 売上推移 | 売上高 | 合計 | 合計に対する割合 [PctTotal] | 表 (下) [Columns] |" in text
 
     def test_フィールド既定の設定が出る(self, minimal_root: ET.Element) -> None:
@@ -88,3 +88,15 @@ class TestRenderTableCalcs:
         workbook = Workbook(meta=WorkbookMeta(source_file="x.twbx"))
         text = "\n".join(render_table_calcs(workbook, {}, 9))
         assert "(該当なし)" in text
+
+    def test_英語では_Tableau_公式の英語表記になる(
+        self, minimal_root: ET.Element
+    ) -> None:
+        from twbdoc.i18n import EN
+
+        workbook = parse_workbook(minimal_root, "test.twbx")
+        text = "\n".join(render_table_calcs(workbook, {}, 9, EN))
+        assert "## 9. Table Calculations" in text
+        assert "Percent of Total [PctTotal]" in text
+        assert "Table (down) [Columns]" in text
+        assert "Specific Dimensions" in text

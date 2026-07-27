@@ -14,7 +14,9 @@ app/python/
 
 # 生成された設計書 (リポジトリには含めない)
 *_設計書.md
+*_Documentation.md
 *_設計書_*/
+*_Documentation_*/
 
 # OS
 Thumbs.db
@@ -26,3 +28,4 @@ Thumbs.db
 
 # 配布用 zip の出力先
 dist/
+

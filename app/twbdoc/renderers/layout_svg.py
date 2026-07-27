@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape
 
+from ..i18n import JA, Translator
 from ..model import Dashboard, Zone
 from .zones import fixed_pixel_size, zone_label
 
@@ -34,7 +35,9 @@ _STYLE = (
 
 
 def render_layout_svg(
-    dashboard: Dashboard, caption_map: dict[str, str] | None = None
+    dashboard: Dashboard,
+    caption_map: dict[str, str] | None = None,
+    t: Translator = JA,
 ) -> str | None:
     """ダッシュボードのレイアウト簡略図を SVG 文字列として返す。
 
@@ -43,7 +46,9 @@ def render_layout_svg(
     width, height = fixed_pixel_size(dashboard.size) or _DEFAULT_CANVAS
     shapes: list[str] = []
     for zone in dashboard.zones:
-        _append_zone_shapes(zone, caption_map or {}, width, height, shapes, 0)
+        _append_zone_shapes(
+            zone, caption_map or {}, width, height, shapes, 0, t
+        )
     if not shapes:
         return None
     display_width = min(width, _MAX_DISPLAY_WIDTH)
@@ -67,11 +72,12 @@ def _append_zone_shapes(
     height: int,
     shapes: list[str],
     depth: int,
+    t: Translator = JA,
 ) -> None:
     box = _zone_box(zone, width, height)
     if box is not None:
         x, y, w, h = box
-        label = zone_label(zone, caption_map)
+        label = zone_label(zone, caption_map, t)
         if zone.zone_type in _CONTAINER_TYPES:
             shapes.append(
                 f'  <rect class="container" x="{x:.1f}" y="{y:.1f}" '
@@ -98,7 +104,9 @@ def _append_zone_shapes(
                 )
             )
     for child in zone.children:
-        _append_zone_shapes(child, caption_map, width, height, shapes, depth + 1)
+        _append_zone_shapes(
+            child, caption_map, width, height, shapes, depth + 1, t
+        )
 
 
 def _zone_box(

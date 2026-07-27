@@ -42,18 +42,18 @@ class TestOutputFolderLayout:
     def _run(self, tmp_path: Path) -> Path:
         twb = tmp_path / "テスト.twb"
         twb.write_text(MINIMAL_TWB, encoding="utf-8")
-        assert main([str(twb), "--no-sample"]) == 0
+        assert main([str(twb), "--no-sample", "--lang", "ja"]) == 0
         date_label = datetime.now().strftime("%Y%m%d")
-        return tmp_path / f"テスト_設計書_{date_label}"
+        return tmp_path / f"テスト_Documentation_{date_label}"
 
     def test_日付付きフォルダにmdと画像が出力される(
         self, tmp_path: Path
     ) -> None:
         doc_dir = self._run(tmp_path)
         assert doc_dir.is_dir()
-        markdown_path = doc_dir / "テスト_設計書.md"
+        markdown_path = doc_dir / "テスト_Documentation.md"
         assert markdown_path.is_file()
-        html_path = doc_dir / "テスト_設計書.html"
+        html_path = doc_dir / "テスト_Documentation.html"
         assert html_path.is_file()
         html = html_path.read_text(encoding="utf-8")
         assert "mermaid.initialize" in html
@@ -70,7 +70,7 @@ class TestOutputFolderLayout:
         from twbdoc import __version__
 
         doc_dir = self._run(tmp_path)
-        content = (doc_dir / "テスト_設計書.md").read_text(encoding="utf-8-sig")
+        content = (doc_dir / "テスト_Documentation.md").read_text(encoding="utf-8-sig")
         assert "![売上ダッシュボード](images/売上ダッシュボード.png)" in content
         assert f"- 生成ツール: tableau-workbook-documenter v{__version__}" in content
 
@@ -78,7 +78,7 @@ class TestOutputFolderLayout:
         self, tmp_path: Path
     ) -> None:
         doc_dir = self._run(tmp_path)
-        content = (doc_dir / "テスト_設計書.md").read_text(encoding="utf-8-sig")
+        content = (doc_dir / "テスト_Documentation.md").read_text(encoding="utf-8-sig")
         assert "※ 画像はサムネイルであり、実際のダッシュボード全体画像ではありません。" in content
         assert "![売上ダッシュボード レイアウト](images/layout_売上ダッシュボード.svg)" in content
         svg_path = doc_dir / "images" / "layout_売上ダッシュボード.svg"
@@ -97,11 +97,12 @@ class TestOutputFolderLayout:
             ),
             encoding="utf-8",
         )
-        assert main([str(twb), "--no-sample"]) == 0
+        assert main([str(twb), "--no-sample", "--lang", "ja"]) == 0
         date_label = datetime.now().strftime("%Y%m%d")
-        doc_dir = tmp_path / f"画像なし_設計書_{date_label}"
-        content = (doc_dir / "画像なし_設計書.md").read_text(encoding="utf-8-sig")
+        doc_dir = tmp_path / f"画像なし_Documentation_{date_label}"
+        content = (doc_dir / "画像なし_Documentation.md").read_text(encoding="utf-8-sig")
         assert not list((doc_dir / "images").glob("*.png"))
         assert "サムネイルであり" not in content
         # レイアウト簡略図はサムネイルが無くても生成される
         assert list((doc_dir / "images").glob("layout_*.svg"))
+

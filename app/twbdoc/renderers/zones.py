@@ -1,28 +1,47 @@
-"""ダッシュボードのゾーンツリーを Markdown (インデント付きリスト + Mermaid) で描画する。"""
+"""ダッシュボードのゾーン (オブジェクト) 構成を描画する。
+
+オブジェクト名は Tableau のダッシュボード オブジェクト名に合わせる。
+"""
 
 from __future__ import annotations
 
 from ..fieldref import humanize_field_ref
+from ..i18n import JA, Translator
 from ..model import DashboardSize, Zone
 
 ZONE_TYPE_LABELS = {
-    "layout-flow": "コンテナ",
-    "layout-basic": "基本レイアウト",
-    "title": "タイトル",
-    "text": "テキスト",
-    "filter": "フィルター",
-    "paramctrl": "パラメーターコントロール",
-    "color": "凡例 (色)",
-    "size": "凡例 (サイズ)",
-    "shape": "凡例 (形状)",
-    "map": "凡例 (マップ)",
-    "highlight": "ハイライター",
-    "web": "Web ページ",
-    "bitmap": "イメージ",
-    "empty": "空白",
-    "worksheet": "ワークシート",
-    "unknown": "その他",
+    "layout-flow": ("コンテナ", "Container"),
+    "layout-basic": ("タイルレイアウト", "Tiled layout"),
+    "title": ("タイトル", "Title"),
+    "text": ("テキスト", "Text"),
+    "filter": ("フィルター", "Filter"),
+    "paramctrl": ("パラメーターコントロール", "Parameter control"),
+    "color": ("色の凡例", "Color legend"),
+    "size": ("サイズの凡例", "Size legend"),
+    "shape": ("形状の凡例", "Shape legend"),
+    "map": ("マップの凡例", "Map legend"),
+    "highlight": ("ハイライター", "Highlighter"),
+    "web": ("Web ページ", "Web Page"),
+    "bitmap": ("画像", "Image"),
+    "empty": ("空白", "Blank"),
+    "worksheet": ("ワークシート", "Worksheet"),
+    "unknown": ("その他", "Other"),
 }
+
+_FLOW_DIRECTION_LABELS = {
+    "vert": ("垂直", "Vertical"),
+    "horz": ("水平", "Horizontal"),
+}
+
+# フィールド参照を表示するオブジェクト (Tableau のカード類)
+_FIELD_REF_ZONE_TYPES = (
+    "filter",
+    "paramctrl",
+    "color",
+    "size",
+    "shape",
+    "highlight",
+)
 
 # twb の相対座標 (0〜100000) を % に換算する除数
 _COORDINATE_SCALE = 1000
@@ -34,6 +53,7 @@ def render_zone_list(
     zones: tuple[Zone, ...],
     caption_map: dict[str, str],
     size: DashboardSize | None = None,
+    t: Translator = JA,
 ) -> list[str]:
     """ゾーンツリーをインデント付きリストの行リストとして返す。
 
@@ -43,7 +63,19 @@ def render_zone_list(
     pixel_size = fixed_pixel_size(size)
     lines: list[str] = []
     for zone in zones:
-        _append_zone_lines(zone, caption_map, pixel_size, depth=0, lines=lines)
+        _append_zone_lines(zone, caption_map, pixel_size, 0, lines, t)
+    return lines
+
+
+def render_zone_mermaid(
+    zones: tuple[Zone, ...], caption_map: dict[str, str], t: Translator = JA
+) -> list[str]:
+    """ゾーンツリーを Mermaid (graph TD) の行リストとして返す。"""
+    lines = ["```mermaid", "graph TD"]
+    counter = [0]
+    for zone in zones:
+        _append_mermaid_lines(zone, caption_map, None, counter, lines, t)
+    lines.append("```")
     return lines
 
 
@@ -60,53 +92,50 @@ def fixed_pixel_size(size: DashboardSize | None) -> tuple[int, int] | None:
     return width, height
 
 
-def render_zone_mermaid(
-    zones: tuple[Zone, ...], caption_map: dict[str, str]
-) -> list[str]:
-    """ゾーンツリーを Mermaid (graph TD) の行リストとして返す。"""
-    lines = ["```mermaid", "graph TD"]
-    counter = [0]
-    for zone in zones:
-        _append_mermaid_lines(zone, caption_map, None, counter, lines)
-    lines.append("```")
-    return lines
-
-
-def zone_label(zone: Zone, caption_map: dict[str, str]) -> str:
+def zone_label(
+    zone: Zone, caption_map: dict[str, str], t: Translator = JA
+) -> str:
     """ゾーン 1 件の表示ラベル (種別 + 内容)。"""
-    type_label = _zone_type_label(zone)
-    detail = _zone_detail(zone, caption_map)
+    type_label = _zone_type_label(zone, t)
+    detail = _zone_detail(zone, caption_map, t)
     if detail:
         return f"[{type_label}] {detail}"
     return f"[{type_label}]"
 
 
-def _zone_type_label(zone: Zone) -> str:
+def _zone_type_label(zone: Zone, t: Translator) -> str:
     if zone.zone_type == "layout-flow":
-        direction = {"vert": "垂直", "horz": "水平"}.get(zone.param, "")
-        return f"{direction}コンテナ" if direction else "コンテナ"
-    label = ZONE_TYPE_LABELS.get(zone.zone_type)
-    if label is not None:
-        return label
-    return f"不明: {zone.zone_type}"
+        direction = _FLOW_DIRECTION_LABELS.get(zone.param)
+        container = t(*ZONE_TYPE_LABELS["layout-flow"])
+        if direction is None:
+            return container
+        if t.is_english:
+            return f"{t(*direction)} {container.lower()}"
+        return f"{t(*direction)}{container}"
+    pair = ZONE_TYPE_LABELS.get(zone.zone_type)
+    if pair is not None:
+        return t(*pair)
+    return t("不明", "Unknown") + f": {zone.zone_type}"
 
 
-def _zone_detail(zone: Zone, caption_map: dict[str, str]) -> str:
+def _zone_detail(
+    zone: Zone, caption_map: dict[str, str], t: Translator
+) -> str:
     if zone.zone_type == "worksheet":
         return zone.name
     if zone.text:
         return _shorten(zone.text)
-    if zone.zone_type in ("filter", "paramctrl", "color", "size", "shape", "highlight"):
+    if zone.zone_type in _FIELD_REF_ZONE_TYPES:
         if not zone.param:
             return ""
-        return humanize_field_ref(zone.param, caption_map)
+        return humanize_field_ref(zone.param, caption_map, t)
     if zone.name:
         return zone.name
     return ""
 
 
 def _coordinates_note(
-    zone: Zone, pixel_size: tuple[int, int] | None
+    zone: Zone, pixel_size: tuple[int, int] | None, t: Translator
 ) -> str:
     if pixel_size is not None:
         width, height = pixel_size
@@ -115,8 +144,8 @@ def _coordinates_note(
             for label, value, base in (
                 ("x", zone.x, width),
                 ("y", zone.y, height),
-                ("幅", zone.w, width),
-                ("高さ", zone.h, height),
+                (t("幅", "w"), zone.w, width),
+                (t("高さ", "h"), zone.h, height),
             )
             if value is not None
         ]
@@ -159,14 +188,17 @@ def _append_zone_lines(
     pixel_size: tuple[int, int] | None,
     depth: int,
     lines: list[str],
+    t: Translator,
 ) -> None:
     indent = "  " * depth
     lines.append(
-        f"{indent}- {zone_label(zone, caption_map)}"
-        f"{_coordinates_note(zone, pixel_size)}"
+        f"{indent}- {zone_label(zone, caption_map, t)}"
+        f"{_coordinates_note(zone, pixel_size, t)}"
     )
     for child in zone.children:
-        _append_zone_lines(child, caption_map, pixel_size, depth + 1, lines)
+        _append_zone_lines(
+            child, caption_map, pixel_size, depth + 1, lines, t
+        )
 
 
 def _append_mermaid_lines(
@@ -175,12 +207,13 @@ def _append_mermaid_lines(
     parent_id: str | None,
     counter: list[int],
     lines: list[str],
+    t: Translator,
 ) -> None:
     node_id = f"z{counter[0]}"
     counter[0] += 1
-    label = zone_label(zone, caption_map).replace('"', "#quot;")
+    label = zone_label(zone, caption_map, t).replace('"', "#quot;")
     lines.append(f'    {node_id}["{label}"]')
     if parent_id is not None:
         lines.append(f"    {parent_id} --> {node_id}")
     for child in zone.children:
-        _append_mermaid_lines(child, caption_map, node_id, counter, lines)
+        _append_mermaid_lines(child, caption_map, node_id, counter, lines, t)

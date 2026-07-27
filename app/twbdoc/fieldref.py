@@ -8,34 +8,39 @@ from __future__ import annotations
 
 import re
 
+from .i18n import JA, Translator
+
 _FIELD_REF_PATTERN = re.compile(r"\[([^\[\]]+)\]")
 _DERIVATION_PATTERN = re.compile(r"^([a-z]+):(.+?)(?::[a-z]+)?$")
 
+# 集計・日付部分の表記 (Tableau の集計名に合わせる)
 DERIVATION_LABELS = {
-    "sum": "合計",
-    "avg": "平均",
-    "min": "最小",
-    "max": "最大",
-    "cnt": "個数",
-    "ctd": "個別カウント",
-    "med": "中央値",
-    "yr": "年",
-    "qr": "四半期",
-    "mn": "月",
-    "my": "年月",
-    "dy": "日",
-    "usr": "",
-    "none": "",
-    "attr": "属性",
+    "sum": ("合計", "Sum"),
+    "avg": ("平均", "Average"),
+    "min": ("最小値", "Minimum"),
+    "max": ("最大値", "Maximum"),
+    "cnt": ("カウント", "Count"),
+    "ctd": ("個別カウント", "Count (Distinct)"),
+    "med": ("中央値", "Median"),
+    "yr": ("年", "Year"),
+    "qr": ("四半期", "Quarter"),
+    "mn": ("月", "Month"),
+    "my": ("年月", "Month-Year"),
+    "dy": ("日", "Day"),
+    "usr": ("", ""),
+    "none": ("", ""),
+    "attr": ("属性", "Attribute"),
 }
 
 SPECIAL_FIELD_LABELS = {
-    ":Measure Names": "メジャーネーム",
-    ":Measure Values": "メジャーバリュー",
+    ":Measure Names": ("メジャーネーム", "Measure Names"),
+    ":Measure Values": ("メジャーバリュー", "Measure Values"),
 }
 
 
-def humanize_field_ref(ref: str, caption_map: dict[str, str]) -> str:
+def humanize_field_ref(
+    ref: str, caption_map: dict[str, str], t: Translator = JA
+) -> str:
     """フィールド参照を人間が読める名前に変換する。
 
     例: '[Sample - Superstore].[usr:Calculation_100:qk]' -> '利益率'
@@ -45,10 +50,11 @@ def humanize_field_ref(ref: str, caption_map: dict[str, str]) -> str:
     token = tokens[-1] if tokens else ref
     special = SPECIAL_FIELD_LABELS.get(token)
     if special is not None:
-        return special
+        return t(*special)
     derivation, base = split_derivation(token)
     display = caption_map.get(f"[{base}]", f"[{base}]").strip("[]")
-    label = DERIVATION_LABELS.get(derivation, derivation)
+    pair = DERIVATION_LABELS.get(derivation)
+    label = t(*pair) if pair is not None else derivation
     if label:
         return f"{display} ({label})"
     return display

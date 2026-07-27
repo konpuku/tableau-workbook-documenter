@@ -11,10 +11,11 @@ from twbdoc.renderers.actions import render_actions
 class TestParseActions:
     def test_アクション3種を抽出する(self, minimal_root: ET.Element) -> None:
         actions = parse_actions(minimal_root)
+        # kind は言語非依存のキー (表示名はレンダラーが解決する)
         assert [action.kind for action in actions] == [
-            "ハイライト",
-            "URL を開く",
-            "セットの値を変更",
+            "highlight",
+            "url",
+            "set",
         ]
 
     def test_ハイライトアクションの詳細(self, minimal_root: ET.Element) -> None:
@@ -47,12 +48,30 @@ class TestRenderActions:
         actions = parse_actions(minimal_root)
         text = "\n".join(render_actions(actions, {}, 4))
         assert "## 4. ダッシュボードアクション" in text
-        assert "| 名前 | 種類 | 実行タイミング | ソース | ターゲット | 対象フィールド | 詳細 |" in text
-        assert "選択時" in text
-        assert "メニュー選択時" in text
+        assert (
+            "| 名前 | 種類 | 実行方法 | ソースシート | ターゲット | 対象フィールド | 詳細 |"
+            in text
+        )
+        # Tableau の表記に合わせたアクション種別・実行方法
+        assert "ハイライト" in text
+        assert "URL に移動" in text
+        assert "セット値の変更" in text
+        assert "| 選択 |" in text
+        assert "| メニュー |" in text
         assert "売上ダッシュボード (除外: 単独シート)" in text
         # セットアクションのターゲットは可読化される
         assert "Region Set" in text
+
+    def test_英語では英語表記になる(self, minimal_root: ET.Element) -> None:
+        from twbdoc.i18n import EN
+
+        actions = parse_actions(minimal_root)
+        text = "\n".join(render_actions(actions, {}, 4, EN))
+        assert "## 4. Dashboard Actions" in text
+        assert "Highlight" in text
+        assert "Go to URL" in text
+        assert "Change Set Values" in text
+        assert "| Select |" in text
 
     def test_アクションなしは該当なし(self) -> None:
         text = "\n".join(render_actions((), {}, 4))

@@ -259,7 +259,7 @@ class TestExtractOnlyFallback:
             ),
         )
         text = "\n".join(render_datasources_prep(workbook, {}))
-        assert NO_EDGES_NOTE in text
+        assert NO_EDGES_NOTE[0] in text
 
     def test_列が多い場合は省略表示になる(self) -> None:
         from twbdoc.model import TableColumn
@@ -302,7 +302,7 @@ class TestPrepRendering:
         assert "#### データモデル図" in text
         assert "#### リレーションシップ" in text
         assert "#### 結合 (物理テーブル)" in text
-        assert "左外部結合" in text
+        assert "左結合" in text
         assert "#### ユニオン" in text
         assert "売上Q1, 売上Q2" in text
         # erDiagram は廃止 (flowchart 統合図のみ)
@@ -311,9 +311,9 @@ class TestPrepRendering:
         assert "#### フィールド設定の変更" in text
         assert "string → real (変更)" in text
         assert "郵便番号" in text  # semantic-role の日本語化
-        assert "#### データソースフィルタ" in text
+        assert "#### データソースフィルター" in text
         assert "Consumer のみ保持" in text
-        assert "#### 抽出フィルタ" in text
+        assert "#### 抽出フィルター" in text
         assert "抽出 (全件)" in text
 
     def test_リレーションシップが点線で描かれる(
@@ -370,7 +370,7 @@ class TestPrepRendering:
         text = "\n".join(render_datasources_prep(workbook, {}))
         assert "flowchart LR" in text
         assert 'subgraph lt0 ["オーダー+関係者"]' in text
-        assert '-- "左外部結合: オーダー.地域 = 関係者.地域" ---' in text
+        assert '-- "左結合: オーダー.地域 = 関係者.地域" ---' in text
         # 論理テーブル外のユニオンも内側の枠として出力される
         assert '["売上ユニオン (ユニオン)"]' in text
         assert "direction TB" in text

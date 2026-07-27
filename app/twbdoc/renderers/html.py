@@ -13,6 +13,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
+from ..i18n import JA, Translator
 from .anchors import gfm_slug
 
 _ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
@@ -26,7 +27,8 @@ _TABLE_SEPARATOR_PATTERN = re.compile(r"^\|[\s\-:|]+\|$")
 _CELL_SPLIT_PATTERN = re.compile(r"(?<!\\)\|")
 
 MERMAID_MISSING_NOTE = (
-    "※ Mermaid ライブラリが見つからないため、図はコードとして表示されます。"
+    "※ Mermaid ライブラリが見つからないため、図はコードとして表示されます。",
+    "* The Mermaid library was not found, so diagrams are shown as code.",
 )
 
 _CSS = """
@@ -60,6 +62,7 @@ def render_html(
     markdown: str,
     title: str,
     load_image: Callable[[str], str | None] | None = None,
+    t: Translator = JA,
 ) -> str:
     """設計書 Markdown を単一 HTML 文字列に変換する。
 
@@ -68,7 +71,7 @@ def render_html(
     mermaid_js = _load_mermaid_js()
     body = _convert_body(markdown, load_image)
     if mermaid_js is None:
-        body = f"<p>{_escape(MERMAID_MISSING_NOTE)}</p>\n" + body
+        body = f"<p>{_escape(t(*MERMAID_MISSING_NOTE))}</p>\n" + body
         scripts = ""
     else:
         scripts = (
@@ -78,7 +81,7 @@ def render_html(
         )
     return (
         "<!DOCTYPE html>\n"
-        '<html lang="ja">\n<head>\n<meta charset="utf-8">\n'
+        f'<html lang="{t.language}">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{_escape(title)}</title>\n"
         f"<style>{_CSS}</style>\n"

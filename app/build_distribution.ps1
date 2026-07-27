@@ -20,6 +20,18 @@ param(
 $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path   # app フォルダ
 $rootDir = Split-Path -Parent $scriptDir
+
+# 表示言語: TWBDOC_LANG > Windows の表示言語
+$script:Lang = if ($env:TWBDOC_LANG -match '^(?i)ja') { 'ja' }
+    elseif ($env:TWBDOC_LANG -match '^(?i)en') { 'en' }
+    elseif ($PSUICulture -like 'ja*') { 'ja' }
+    else { 'en' }
+
+function T {
+    param([string]$Ja, [string]$En)
+    if ($script:Lang -eq 'en') { return $En }
+    return $Ja
+}
 if (-not $OutputDir) {
     $OutputDir = Join-Path $rootDir 'dist'
 }
@@ -27,7 +39,7 @@ if (-not $OutputDir) {
 # 1. 同梱 Python を準備 (未配置ならダウンロードして配置)
 & (Join-Path $scriptDir 'setup_python.ps1') -PythonVersion $PythonVersion -WithHyperApi:$WithHyperApi
 if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) {
-    Write-Host '[エラー] 同梱 Python の準備に失敗しました。' -ForegroundColor Red
+    Write-Host (T '[エラー] 同梱 Python の準備に失敗しました。' '[Error] Failed to prepare the bundled Python.') -ForegroundColor Red
     exit 1
 }
 
@@ -63,11 +75,11 @@ try {
     if (Test-Path $zipPath) {
         Remove-Item $zipPath
     }
-    Write-Host "zip を作成しています: $zipPath"
+    Write-Host (T "zip を作成しています: $zipPath" "Creating the zip: $zipPath")
     Compress-Archive -Path $packageRoot -DestinationPath $zipPath -CompressionLevel Optimal
     $sizeMb = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
-    Write-Host "[完了] $zipPath ($sizeMb MB)" -ForegroundColor Green
-    Write-Host 'この zip を配布してください。利用者は展開して generate_doc.bat を使うだけです。'
+    Write-Host (T "[完了] $zipPath ($sizeMb MB)" "[Done] $zipPath ($sizeMb MB)") -ForegroundColor Green
+    Write-Host (T 'この zip を配布してください。利用者は展開して generate_doc.bat を使うだけです。' 'Distribute this zip. Users just extract it and use generate_doc.bat.')
 } finally {
     if (Test-Path $stage) {
         Remove-Item -Recurse -Force $stage

@@ -15,9 +15,14 @@ class TestEndToEnd:
     ) -> None:
         if not sample_twbx_paths:
             pytest.skip("サンプル twbx が見つかりません")
-        args = [str(p) for p in sample_twbx_paths] + ["--output", str(tmp_path)]
+        args = [str(p) for p in sample_twbx_paths] + [
+            "--output",
+            str(tmp_path),
+            "--lang",
+            "ja",
+        ]
         assert main(args) == 0
-        outputs = sorted(tmp_path.glob("*_設計書_*/*_設計書.md"))
+        outputs = sorted(tmp_path.glob("*_Documentation_*/*_Documentation.md"))
         assert len(outputs) == len(sample_twbx_paths)
         for output in outputs:
             content = output.read_text(encoding="utf-8-sig")
@@ -41,7 +46,29 @@ class TestEndToEnd:
             str(tmp_path),
         ]
         assert main(args) == 2
-        assert list(tmp_path.glob("*_設計書_*/*_設計書.md"))
+        assert list(tmp_path.glob("*_Documentation_*/*_Documentation.md"))
+
+    def test_英語指定で英語の設計書が生成される(
+        self, sample_twbx_paths: list[Path], tmp_path: Path
+    ) -> None:
+        if not sample_twbx_paths:
+            pytest.skip("サンプル twbx が見つかりません")
+        args = [
+            str(sample_twbx_paths[0]),
+            "--output",
+            str(tmp_path),
+            "--no-sample",
+            "--lang",
+            "en",
+        ]
+        assert main(args) == 0
+        output = next(tmp_path.glob("*_Documentation_*/*_Documentation.md"))
+        content = output.read_text(encoding="utf-8-sig")
+        assert "## Contents" in content
+        assert "## 1. Workbook Overview" in content
+        assert "## 2. Data Sources and Preparation" in content
+        assert "## 12. Health Check" in content
+        assert "設計書" not in content
 
     def test_BOM_付き_UTF8_で出力される(
         self, sample_twbx_paths: list[Path], tmp_path: Path
@@ -49,5 +76,6 @@ class TestEndToEnd:
         if not sample_twbx_paths:
             pytest.skip("サンプル twbx が見つかりません")
         main([str(sample_twbx_paths[0]), "--output", str(tmp_path)])
-        output = next(tmp_path.glob("*_設計書_*/*_設計書.md"))
+        output = next(tmp_path.glob("*_Documentation_*/*_Documentation.md"))
         assert output.read_bytes().startswith(b"\xef\xbb\xbf")
+

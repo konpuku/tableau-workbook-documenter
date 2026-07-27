@@ -1,9 +1,23 @@
 # twb_doc_generator — Tableau ワークブック設計書自動生成ツール
 
-Tableau ワークブック (.twbx / .twb) を解析し、設計書 (Markdown) を自動生成します。
+*[English](README.en.md)*
+
+Tableau ワークブック (.twbx / .twb) を解析し、設計書 (HTML / Markdown) を自動生成します。
 
 - **完全ローカル動作**: 生成 AI・インターネット接続・追加ライブラリは一切不要 (Python 標準ライブラリのみ)
 - **企業の Windows 環境を想定**: bat / PowerShell / Python だけで動作。Python 未導入の PC 向けに同梱配布にも対応
+- **日本語 / 英語対応**: 実行環境の表示言語を自動判定して出力を切り替え。用語は Tableau 公式ヘルプの表記に統一
+
+## 出力言語
+
+Windows の表示言語から自動判定します (日本語環境なら日本語、それ以外は英語)。
+明示的に指定する場合:
+
+```powershell
+python -m twbdoc book.twbx --lang en     # 英語で出力
+python -m twbdoc book.twbx --lang ja     # 日本語で出力
+$env:TWBDOC_LANG = 'en'                  # 環境変数でも指定可 (bat 起動時の画面表示にも反映)
+```
 
 ## 必要環境
 
@@ -18,9 +32,9 @@ Tableau ワークブック (.twbx / .twb) を解析し、設計書 (Markdown) �
 入力ファイルと同じフォルダに以下の構成で生成されます (`yyyymmdd` は実行日):
 
 ```text
-<ファイル名>_設計書_yyyymmdd\
-├── <ファイル名>_設計書.html    # ブラウザで開ける設計書 (推奨。図・目次ジャンプ・ツールチップ対応)
-├── <ファイル名>_設計書.md      # Markdown 版 (VS Code / GitHub 向け)
+<ファイル名>_Documentation_yyyymmdd\
+├── <ファイル名>_Documentation.html    # ブラウザで開ける設計書 (推奨。図・目次ジャンプ・ツールチップ対応)
+├── <ファイル名>_Documentation.md      # Markdown 版 (VS Code / GitHub 向け)
 └── images\
     ├── <ダッシュボード名>.png          # プレビュー画像 (ワークブック内蔵サムネイル)
     └── layout_<ダッシュボード名>.svg   # レイアウト簡略図 (位置・サイズ比率を再現)
@@ -108,7 +122,7 @@ cd twb_doc_generator\app
 | 7. パラメーター | データ型・現在値・許容値 (範囲 / リスト / 自由入力) |
 | 8. 計算フィールド | リネージュ (依存関係の Mermaid 図 + 各フィールド詳細へのリンク)、データ型・ロール・GUI コメント・式内コメント (`//`, `/* */`)・参照フィールド・利用先ワークシート・数式 (内部 ID は表示名に自動置換)。未使用フィールドには ⚠ を表示 |
 | 9. 表計算設定 | ピルごとの設定 (シート別: 対象ピル・集計・表計算の種類・次を使用して計算) とフィールド既定の設定。「特定のディメンション」は計算順序付きで表示 |
-| 10. 別名一覧 | フィールドごとの「元の値 → 別名」対応表 |
+| 10. 別名 | フィールドごとの「元の値 → 別名」対応表 |
 | 11. 書式設定 | フォント名・サイズ・色などの GUI 設定 (ワークブック / ワークシート / ダッシュボード別) |
 | 12. 健康診断 | 保守リスクの機械チェック: 未使用の計算フィールド/パラメーター、重複した計算式、抽出の行数制限 (⚠ 警告)、ダッシュボード未配置シート、未使用データソース、深い依存チェーン、コメント記載率 (ℹ 情報)。警告数は 1 章の概要にも表示 |
 | 13. テーブル別フィールド一覧 (参考) | 全フィールドの名前・型と、実データからサンプリングした代表値 (下記参照) |
@@ -164,6 +178,15 @@ pip install pytest pytest-cov   # 開発環境のみ
 python -m pytest tests/ --cov=twbdoc
 ```
 
+## 用語について
+
+用語は日英とも Tableau 公式ヘルプの表記に合わせています
+(例:「次を使用して計算」/ Compute Using、「合計に対する割合」/ Percent of Total、
+「URL に移動」/ Go to URL、「数値 (整数)」/ Number (whole))。
+設計書の記述と Tableau Desktop の画面表示が一致するため、対応付けが容易です。
+
 ## 参考
 
 - [Tableau Document Schemas (公式 XSD)](https://github.com/tableau/tableau-document-schemas)
+- [Tableau ヘルプ (日本語)](https://help.tableau.com/current/pro/desktop/ja-jp/default.htm)
+- [Tableau Help (English)](https://help.tableau.com/current/pro/desktop/en-us/default.htm)

@@ -1,17 +1,18 @@
 """コマンドラインインターフェース。
 
 使い方:
-    python -m twbdoc <file.twbx> [<file2.twb> ...] [--output <dir>]
+    python -m twbdoc <file.twbx> [<file2.twb> ...] [--output <dir>] [--lang ja|en]
 
 各入力ファイルと同じフォルダ (または --output 指定先) に
-「<ファイル名>_設計書_yyyymmdd」フォルダを作成し、その中に
-「<ファイル名>_設計書.md」(UTF-8 BOM 付き) と、ダッシュボードの
-プレビュー画像 (images サブフォルダ) を出力する。
+「<ファイル名>_Documentation_yyyymmdd」フォルダを作成し、その中に
+設計書 (Markdown / HTML) とダッシュボードの画像 (images サブフォルダ) を
+出力する。出力言語は実行環境から自動判定する (--lang で上書き可)。
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import sys
 from dataclasses import replace
 from datetime import datetime
@@ -19,8 +20,7 @@ from pathlib import Path
 
 from . import __version__
 from .errors import InvalidFileError, ParseError, TwbDocError
-import base64
-
+from .i18n import LANGUAGE_CHOICES, Translator, get_translator
 from .loader import load_workbook_xml
 from .model import Workbook
 from .parsers import parse_workbook
@@ -35,7 +35,9 @@ EXIT_OK = 0
 EXIT_PARSE_ERROR = 1
 EXIT_INPUT_ERROR = 2
 
-OUTPUT_SUFFIX = "_設計書"
+# 出力フォルダ・ファイル名は言語によらず英語で統一する
+# (文字化け・パス長の問題を避けるため)
+OUTPUT_SUFFIX = "_Documentation"
 IMAGES_DIR_NAME = "images"
 
 
@@ -43,9 +45,12 @@ def main(argv: list[str] | None = None) -> int:
     """エントリポイント。成功 0 / 解析エラー 1 / 入力エラー 2 を返す。"""
     _configure_stdout()
     args = _parse_args(argv)
+    t = get_translator(args.lang)
     exit_code = EXIT_OK
     for input_path in args.files:
-        code = _process_file(Path(input_path), args.output, args.no_sample)
+        code = _process_file(
+            Path(input_path), args.output, args.no_sample, t
+        )
         exit_code = max(exit_code, code)
     return exit_code
 
@@ -53,20 +58,30 @@ def main(argv: list[str] | None = None) -> int:
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="twbdoc",
-        description="Tableau ワークブック (.twbx/.twb) から設計書 Markdown を生成します。",
+        description=(
+            "Generate documentation (Markdown / HTML) from a Tableau "
+            "workbook (.twbx / .twb)."
+        ),
     )
-    parser.add_argument("files", nargs="+", help="入力ファイル (.twbx / .twb)")
+    parser.add_argument("files", nargs="+", help="input files (.twbx / .twb)")
     parser.add_argument(
         "--output",
         "-o",
         type=Path,
         default=None,
-        help="設計書フォルダの作成先 (省略時は入力ファイルと同じフォルダ)",
+        help="where to create the documentation folder "
+        "(default: next to the input file)",
     )
     parser.add_argument(
         "--no-sample",
         action="store_true",
-        help="フィールドのサンプル値取得をスキップする",
+        help="skip reading sample values from the bundled data",
+    )
+    parser.add_argument(
+        "--lang",
+        choices=LANGUAGE_CHOICES,
+        default="auto",
+        help="output language (default: auto-detect from the environment)",
     )
     parser.add_argument(
         "--version", action="version", version=f"twbdoc {__version__}"
@@ -75,48 +90,56 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def _process_file(
-    input_path: Path, output_dir: Path | None, no_sample: bool = False
+    input_path: Path,
+    output_dir: Path | None,
+    no_sample: bool = False,
+    t: Translator | None = None,
 ) -> int:
+    t = t or get_translator()
     try:
         generated_at = datetime.now()
-        root = load_workbook_xml(input_path)
+        root = load_workbook_xml(input_path, t)
         workbook = parse_workbook(root, source_file=input_path.name)
-        samples = None if no_sample else collect_samples(input_path)
+        samples = None if no_sample else collect_samples(input_path, t)
         doc_dir = _resolve_output_dir(input_path, output_dir, generated_at)
         workbook = _attach_dashboard_images(
             workbook, extract_thumbnails(root), doc_dir
         )
-        workbook = _attach_layout_images(workbook, doc_dir)
-        markdown = render(workbook, generated_at=generated_at, samples=samples)
+        workbook = _attach_layout_images(workbook, doc_dir, t)
+        markdown = render(
+            workbook, generated_at=generated_at, samples=samples, t=t
+        )
         output_path = doc_dir / f"{input_path.stem}{OUTPUT_SUFFIX}.md"
-        _write_output(output_path, markdown)
+        _write_output(output_path, markdown, t=t)
         html = render_html(
             markdown,
-            title=f"{input_path.stem} 設計書",
+            title=f"{input_path.stem} " + t("設計書", "Documentation"),
             load_image=_image_loader(doc_dir),
+            t=t,
         )
         _write_output(
             doc_dir / f"{input_path.stem}{OUTPUT_SUFFIX}.html",
             html,
             encoding="utf-8",
+            t=t,
         )
-    except InvalidFileError as error:
-        print(f"[エラー] {error}", file=sys.stderr)
-        return EXIT_INPUT_ERROR
-    except ParseError as error:
-        print(f"[エラー] {error}", file=sys.stderr)
+    except (InvalidFileError, ParseError, TwbDocError) as error:
+        print(f"{t('[エラー]', '[Error]')} {error}", file=sys.stderr)
+        if isinstance(error, InvalidFileError):
+            return EXIT_INPUT_ERROR
         return EXIT_PARSE_ERROR
-    except TwbDocError as error:
-        print(f"[エラー] {error}", file=sys.stderr)
-        return EXIT_PARSE_ERROR
-    except Exception as error:  # 想定外の例外もトレースバックを見せず日本語で報告する
+    except Exception as error:  # 想定外の例外もトレースバックを見せず報告する
         print(
-            f"[エラー] 予期しないエラーが発生しました ({input_path.name}): "
-            f"{type(error).__name__}: {error}",
+            f"{t('[エラー]', '[Error]')} "
+            + t(
+                f"予期しないエラーが発生しました ({input_path.name}): ",
+                f"An unexpected error occurred ({input_path.name}): ",
+            )
+            + f"{type(error).__name__}: {error}",
             file=sys.stderr,
         )
         return EXIT_PARSE_ERROR
-    print(f"[完了] {input_path.name} -> {output_path}")
+    print(f"{t('[完了]', '[Done]')} {input_path.name} -> {output_path}")
     return EXIT_OK
 
 
@@ -130,7 +153,10 @@ def _resolve_output_dir(
 
 
 def _attach_dashboard_images(
-    workbook: Workbook, thumbnails: dict[str, bytes], doc_dir: Path
+    workbook: Workbook,
+    thumbnails: dict[str, bytes],
+    doc_dir: Path,
+    t: Translator | None = None,
 ) -> Workbook:
     """ダッシュボードのサムネイル PNG を書き出し、image_path を設定する。
 
@@ -146,29 +172,36 @@ def _attach_dashboard_images(
             dashboards.append(dashboard)
             continue
         filename = _unique_filename(safe_filename(dashboard.name), used_names)
-        _write_image(doc_dir / IMAGES_DIR_NAME / filename, data)
+        _write_image(doc_dir / IMAGES_DIR_NAME / filename, data, t)
         dashboards.append(
             replace(dashboard, image_path=f"{IMAGES_DIR_NAME}/{filename}")
         )
     return replace(workbook, dashboards=tuple(dashboards))
 
 
-def _attach_layout_images(workbook: Workbook, doc_dir: Path) -> Workbook:
+def _attach_layout_images(
+    workbook: Workbook, doc_dir: Path, t: Translator | None = None
+) -> Workbook:
     """ダッシュボードごとのレイアウト簡略図 (SVG) を書き出してパスを設定する。"""
     if not workbook.dashboards:
         return workbook
+    translator = t or get_translator()
     caption_map = build_caption_map(workbook)
     used_names: set[str] = set()
     dashboards = []
     for dashboard in workbook.dashboards:
-        svg = render_layout_svg(dashboard, caption_map)
+        svg = render_layout_svg(dashboard, caption_map, translator)
         if svg is None:
             dashboards.append(dashboard)
             continue
         filename = _unique_filename(
             f"layout_{safe_filename(dashboard.name)}", used_names, suffix=".svg"
         )
-        _write_image(doc_dir / IMAGES_DIR_NAME / filename, svg.encode("utf-8"))
+        _write_image(
+            doc_dir / IMAGES_DIR_NAME / filename,
+            svg.encode("utf-8"),
+            translator,
+        )
         dashboards.append(
             replace(dashboard, layout_image_path=f"{IMAGES_DIR_NAME}/{filename}")
         )
@@ -188,13 +221,19 @@ def _unique_filename(
     return candidate
 
 
-def _write_image(path: Path, data: bytes) -> None:
+def _write_image(
+    path: Path, data: bytes, t: Translator | None = None
+) -> None:
+    translator = t or get_translator()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     except OSError as error:
         raise InvalidFileError(
-            f"画像ファイルを書き込めません: {path} ({error})"
+            translator(
+                f"画像ファイルを書き込めません: {path} ({error})",
+                f"Cannot write the image file: {path} ({error})",
+            )
         ) from error
 
 
@@ -218,14 +257,21 @@ def _image_loader(doc_dir: Path):
 
 
 def _write_output(
-    output_path: Path, content: str, encoding: str = "utf-8-sig"
+    output_path: Path,
+    content: str,
+    encoding: str = "utf-8-sig",
+    t: Translator | None = None,
 ) -> None:
+    translator = t or get_translator()
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(content, encoding=encoding)
     except OSError as error:
         raise InvalidFileError(
-            f"出力ファイルを書き込めません: {output_path} ({error})"
+            translator(
+                f"出力ファイルを書き込めません: {output_path} ({error})",
+                f"Cannot write the output file: {output_path} ({error})",
+            )
         ) from error
 
 
