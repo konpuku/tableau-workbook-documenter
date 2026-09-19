@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 質問・使い方の相談 / Questions & usage help
+    url: https://github.com/konpuku/tableau-workbook-documenter/discussions
+    about: バグや要望ではない一般的な質問は Discussions へ (未開設の場合は README を参照)

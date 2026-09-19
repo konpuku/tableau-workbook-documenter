@@ -1,0 +1,96 @@
+name: バグ報告 / Bug report
+description: 設計書が正しく生成されない・エラーになる場合の報告 / Report a generation error or wrong output
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不具合の報告ありがとうございます。再現に必要な情報をご記入ください。
+        Thanks for the report. Please provide enough detail to reproduce the problem.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 症状 / What happened
+      description: 何が起きたか、どう困っているかを具体的に / Describe the problem concretely
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動作 / Expected behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: exit-code
+    attributes:
+      label: 終了コード / Exit code
+      description: bat/ps1 実行時に表示された終了コード (分かる場合) / Exit code shown, if any
+      options:
+        - "不明 / Unknown"
+        - "1 = 解析エラー / parse error"
+        - "2 = 入力エラー / input error"
+        - "3 = Python 未検出 / Python not found"
+        - "4 = 同梱 Python の標準ライブラリ読込失敗 / bundled Python stdlib load failure"
+        - "その他 / Other"
+    validations:
+      required: false
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: エラーメッセージ / ログ / Error message or log
+      description: コンソール出力や hyperd.log など。個人情報・機密は伏せてください / Paste console output; redact sensitive data
+      render: text
+    validations:
+      required: false
+
+  - type: dropdown
+    id: source-type
+    attributes:
+      label: 入力ファイルの種類 / Input file type
+      options:
+        - ".twbx"
+        - ".twb"
+    validations:
+      required: true
+
+  - type: input
+    id: tableau-version
+    attributes:
+      label: 作成した Tableau のバージョン / Tableau version that saved the workbook
+      placeholder: "例: 2024.2 / e.g. 2024.2"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: python-mode
+    attributes:
+      label: Python の実行方法 / How Python is run
+      options:
+        - "PC にインストール済みの Python / System Python"
+        - "同梱 Python (setup_python.ps1) / Bundled Python"
+        - "コマンドラインで直接 python -m twbdoc / Direct CLI"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: lang
+    attributes:
+      label: 出力言語 / Output language
+      options:
+        - "日本語 / Japanese"
+        - "英語 / English"
+    validations:
+      required: false
+
+  - type: textarea
+    id: env
+    attributes:
+      label: 環境 / Environment
+      description: OS・Python バージョンなど / OS, Python version, etc.
+      placeholder: "例: Windows 11 / Python 3.11"
+    validations:
+      required: false
