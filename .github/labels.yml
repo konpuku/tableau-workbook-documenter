@@ -37,6 +37,9 @@
 - name: "area: ci"
   color: 1d76db
   description: CI・開発基盤 / CI & tooling
+- name: dependencies
+  color: 0366d6
+  description: 依存・外部アセットの更新 / Dependency & upstream asset updates
 
 # --- 状態・運用 / Workflow ---
 - name: "good first issue"
