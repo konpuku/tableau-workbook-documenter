@@ -65,6 +65,18 @@ Issue や PR のコメント、または Issue 本文に **`@claude`** と書く
 - Claude が出す PR も通常どおり **CI と人によるレビュー** を通ります。エージェントの変更を
   無条件に信頼せず、必ずレビューしてください。
 
+## 外部アセットの追従
+
+参照している外部アセットの更新は `.github/workflows/upstream-check.yml`(週次 + 手動実行)で追従します。
+
+- **更新検知**: `tableau/hyper-db`(hyperapi)と `tableau/tableau-document-schemas`(XSD 定義)の
+  新リリースを検知し、更新があれば `[upstream] …` という Issue を自動起票します
+  (同一タイトルの重複は作りません)。→ あとは通常の issue ドリブンで対応。
+- **追従検証**: 最新の `tableauhyperapi` を入れてテストを実行し、壊れていれば Issue を自動起票します。
+- **Actions の更新**: `.github/dependabot.yml` がワークフローの Action バージョンを週次で最新化します。
+
+手動で今すぐ確認したいときは、Actions タブから **Upstream check** を `Run workflow` で実行できます。
+
 ---
 
 ## English summary

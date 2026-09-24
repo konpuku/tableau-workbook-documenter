@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # ワークフローで使う GitHub Actions を最新に保つ (Issue #2 の「外部アセットの最新化」の一環)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - "area: ci"
+      - dependencies

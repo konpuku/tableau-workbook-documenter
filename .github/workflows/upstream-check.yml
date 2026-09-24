@@ -1,0 +1,157 @@
+name: Upstream check
+
+# 外部アセットの更新に追従するための定期チェック (Issue #2)。
+#   1. watch-upstream : 参照している upstream リポジトリの新リリースを検知し、更新があれば Issue を自動起票
+#        - tableau/hyper-db                (hyperapi / .hyper サンプル値取得)
+#        - tableau/tableau-document-schemas (twb/twbx の XSD 定義)
+#   2. verify-hyperapi : 最新の tableauhyperapi を入れてテストを実行し、追従できているかを検証
+#
+# 週次 (毎週月曜 00:00 UTC) と手動実行 (workflow_dispatch) で動きます。
+# PR/push では動かない (誤って Issue を作らないため)。
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch-upstream:
+    name: Watch upstream releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check upstream repos and open issues on update
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 監視対象。label は .github/labels.yml で定義済みのものを使う。
+            const targets = [
+              { owner: 'tableau', repo: 'hyper-db',
+                name: 'hyperapi (tableauhyperapi)', area: 'area: sampler' },
+              { owner: 'tableau', repo: 'tableau-document-schemas',
+                name: 'XSD 定義 (Tableau Document Schemas)', area: 'area: parser' },
+            ];
+
+            for (const t of targets) {
+              // 最新バージョン: まず latest release、無ければ最新タグ。
+              let version = null;
+              let url = `https://github.com/${t.owner}/${t.repo}`;
+              try {
+                const rel = await github.rest.repos.getLatestRelease({ owner: t.owner, repo: t.repo });
+                version = rel.data.tag_name;
+                url = rel.data.html_url;
+              } catch (e) {
+                try {
+                  const tags = await github.rest.repos.listTags({ owner: t.owner, repo: t.repo, per_page: 1 });
+                  if (tags.data.length > 0) {
+                    version = tags.data[0].name;
+                    url = `https://github.com/${t.owner}/${t.repo}/releases/tag/${version}`;
+                  }
+                } catch (e2) {
+                  core.warning(`${t.owner}/${t.repo}: バージョン取得に失敗しました (${e2.message})`);
+                }
+              }
+              if (!version) {
+                core.warning(`${t.owner}/${t.repo}: リリース/タグが見つかりませんでした`);
+                continue;
+              }
+
+              const title = `[upstream] ${t.name} ${version} の更新を確認`;
+
+              // 同一タイトルの Issue が既にあれば重複作成しない (open/closed 両方を見る)。
+              const found = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} type:issue in:title "${title}"`,
+              });
+              if (found.data.total_count > 0) {
+                core.info(`既に追跡済み: ${title}`);
+                continue;
+              }
+
+              const body = [
+                `${t.owner}/${t.repo} に新しいバージョン **${version}** が公開されています。`,
+                ``,
+                `- リリース/タグ: ${url}`,
+                `- リポジトリ: https://github.com/${t.owner}/${t.repo}`,
+                ``,
+                `本ツールが追従すべき変更がないかレビューしてください。`,
+                `対応が必要なら本 Issue から \`${'<type>'}/<issue番号>-<説明>\` ブランチを切って PR を出し、`,
+                `不要であれば理由を添えてクローズしてください。`,
+                ``,
+                `_この Issue は Upstream check ワークフローが自動作成しました。_`,
+              ].join('\n');
+
+              // area ラベルが未同期でも作成できるよう、失敗時はラベルなしで再試行。
+              try {
+                await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title, body, labels: ['enhancement', t.area],
+                });
+              } catch (e) {
+                core.warning(`ラベル付き作成に失敗、ラベルなしで再試行: ${e.message}`);
+                await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title, body, labels: ['enhancement'],
+                });
+              }
+              core.info(`Issue を作成しました: ${title}`);
+            }
+
+  verify-hyperapi:
+    name: Verify latest tableauhyperapi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev deps + latest tableauhyperapi
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install --upgrade tableauhyperapi
+
+      - name: Show installed version
+        run: python -m pip show tableauhyperapi | grep -i version
+
+      - name: Run tests against latest tableauhyperapi
+        run: python -m pytest tests/ -q
+
+      - name: Open an issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = `[upstream] 最新 tableauhyperapi でテストが失敗`;
+            const found = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} type:issue state:open in:title "${title}"`,
+            });
+            if (found.data.total_count > 0) {
+              core.info('既に未解決の Issue があります');
+              return;
+            }
+            const body = [
+              `最新の \`tableauhyperapi\` を導入した状態でテストが失敗しました。`,
+              `新バージョンに追従できていない可能性があります。`,
+              ``,
+              `- 実行ログ: ${run}`,
+              ``,
+              `_この Issue は Upstream check ワークフローが自動作成しました。_`,
+            ].join('\n');
+            try {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['bug', 'area: sampler'],
+              });
+            } catch (e) {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['bug'],
+              });
+            }
