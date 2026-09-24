@@ -1,0 +1,56 @@
+# ラベル定義。.github/workflows/labels.yml が main への push 時に GitHub へ同期します。
+# Label definitions. Synced to GitHub by .github/workflows/labels.yml on push to main.
+
+# --- 種別 / Type ---
+- name: bug
+  color: d73a4a
+  description: 不具合 / Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: 機能追加・改善 / New feature or improvement
+- name: docs
+  color: 0075ca
+  description: ドキュメント / Documentation
+- name: i18n
+  color: fbca04
+  description: 用語・翻訳 (日英) / Terminology & translation
+- name: question
+  color: d876e3
+  description: 質問 / Further information is requested
+
+# --- 領域 / Area ---
+- name: "area: parser"
+  color: 1d76db
+  description: XML 解析 (app/twbdoc/parsers) / Parsing
+- name: "area: renderer"
+  color: 1d76db
+  description: 出力生成 (app/twbdoc/renderers) / Rendering
+- name: "area: html"
+  color: 1d76db
+  description: HTML 出力 / HTML output
+- name: "area: sampler"
+  color: 1d76db
+  description: サンプル値取得 (hyper/csv/xlsx) / Sample values
+- name: "area: distribution"
+  color: 1d76db
+  description: 配布・同梱 Python・起動スクリプト / Distribution, bundled Python, launchers
+- name: "area: ci"
+  color: 1d76db
+  description: CI・開発基盤 / CI & tooling
+
+# --- 状態・運用 / Workflow ---
+- name: "good first issue"
+  color: 7057ff
+  description: 初めての貢献に向いた課題 / Good for newcomers
+- name: "help wanted"
+  color: 008672
+  description: 協力募集 / Extra attention is needed
+- name: needs-repro
+  color: e99695
+  description: 再現手順・情報が必要 / Needs reproduction or more info
+- name: wontfix
+  color: ffffff
+  description: 対応しない / This will not be worked on
+- name: duplicate
+  color: cfd3d7
+  description: 重複 / Duplicate of another issue

@@ -1,0 +1,50 @@
+name: 用語・翻訳の修正 / Terminology or translation fix
+description: 日英の用語や訳の誤り・不統一の報告 / Report wrong or inconsistent Japanese/English wording
+labels: ["i18n"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        用語は日英とも Tableau 公式ヘルプの表記に合わせています。公式表記との差異を教えてください。
+        Wording follows the official Tableau Help. Please point out any mismatch with the official term.
+
+  - type: dropdown
+    id: lang
+    attributes:
+      label: 対象言語 / Language
+      options:
+        - "日本語 / Japanese"
+        - "英語 / English"
+        - "両方 / Both"
+    validations:
+      required: true
+
+  - type: input
+    id: current
+    attributes:
+      label: 現在の表記 / Current wording
+    validations:
+      required: true
+
+  - type: input
+    id: suggested
+    attributes:
+      label: 修正案 (Tableau 公式表記) / Suggested wording (official Tableau term)
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: 参考 URL / Reference URL
+      description: Tableau 公式ヘルプなどの該当ページ / Link to the official Tableau Help page
+    validations:
+      required: false
+
+  - type: input
+    id: location
+    attributes:
+      label: 出現箇所 / Where it appears
+      description: どの章・どの画面表示か / Which chapter or output location
+    validations:
+      required: false

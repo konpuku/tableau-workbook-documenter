@@ -1,0 +1,8 @@
+# 開発・テスト用の依存 (ツール本体は Python 標準ライブラリのみで動作します)
+# Development / test dependencies only. The tool itself uses the Python standard library only.
+pytest>=7.0
+pytest-cov>=4.0
+
+# 任意: .hyper (Tableau 抽出) のサンプル値取得テストを有効にする場合のみ
+# Optional: only needed to exercise .hyper sample-value extraction tests
+# tableauhyperapi

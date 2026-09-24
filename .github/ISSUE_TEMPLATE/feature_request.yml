@@ -1,0 +1,61 @@
+name: 機能要望 / Feature request
+description: 出力内容や機能の追加・改善の提案 / Propose a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        改善提案ありがとうございます。どの部分に関する要望かを選ぶと対応が早くなります。
+        Thanks! Selecting the affected area helps us triage faster.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したいこと / The problem
+      description: どんな場面で何に困っているか / What are you trying to accomplish?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案内容 / Proposed change
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 対象領域 / Affected area
+      description: 該当する箇所 (設計書の章など) / Which part of the tool/output?
+      multiple: true
+      options:
+        - "解析 (parser) / Parser"
+        - "出力 (renderer) / Renderer"
+        - "1. ワークブック概要 / Overview"
+        - "2. データソースと前処理 / Data sources & prep"
+        - "3. ダッシュボード構成 / Dashboards"
+        - "4. ダッシュボードアクション / Actions"
+        - "5. ワークシート一覧 / Worksheets"
+        - "6. フィルター / Filters"
+        - "7. パラメーター / Parameters"
+        - "8. 計算フィールド / Calculated fields"
+        - "9. 表計算設定 / Table calcs"
+        - "10. 別名 / Aliases"
+        - "11. 書式設定 / Formatting"
+        - "12. 健康診断 / Health check"
+        - "13. サンプル値 / Sample values"
+        - "HTML 出力 / HTML output"
+        - "Markdown 出力 / Markdown output"
+        - "起動スクリプト (bat/ps1) / Launcher scripts"
+        - "配布・同梱 Python / Distribution & bundled Python"
+        - "その他 / Other"
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案・備考 / Alternatives or notes
+    validations:
+      required: false

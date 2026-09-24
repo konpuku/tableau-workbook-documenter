@@ -1,0 +1,30 @@
+name: Sync labels
+
+# .github/labels.yml の内容を GitHub のラベルに反映する。
+# main へ push して labels.yml が変わったとき、または手動実行で同期する。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/labels.yml"
+      - ".github/workflows/labels.yml"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync labels from .github/labels.yml
+        uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/labels.yml
+          # true にすると labels.yml に無いラベルを削除します。既存ラベルを残すため既定は false。
+          delete-other-labels: false
+          token: ${{ secrets.GITHUB_TOKEN }}
