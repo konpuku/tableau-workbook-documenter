@@ -51,7 +51,7 @@ def collect_samples(twbx_path: Path, t: Translator = JA) -> SampleResult:
         return SampleResult(
             notes=(
                 t(
-                    "twb 単体のためデータが同梱されておらず、"
+                    "twb 単体にはデータが同梱されていないため、"
                     "サンプル値は取得できません",
                     "This is a .twb file, so no data is bundled and "
                     "sample values cannot be read",
@@ -106,7 +106,7 @@ def _collect_from_entry(
     if info.file_size > MAX_DATA_FILE_BYTES:
         notes.append(
             t(
-                f"{name}: サイズ超過のためスキップしました",
+                f"{name}: サイズが上限を超えたためスキップしました",
                 f"{name}: skipped (file too large)",
             )
         )

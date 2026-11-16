@@ -132,7 +132,7 @@ def _duplicated_formulas(
             category=t("重複した計算式", "Duplicate formula"),
             target=", ".join(names),
             message=t(
-                "同一の計算式を持つフィールドです。片方に統合できる可能性があります。",
+                "同一の計算式を持つフィールドです。1 つに統合できる可能性があります。",
                 "These fields have identical formulas. "
                 "Consider consolidating them.",
             ),
@@ -180,7 +180,7 @@ def _orphan_worksheets(
             ),
             target=sheet.name,
             message=t(
-                "どのダッシュボードにも配置されていません (作業用シートの可能性)。",
+                "どのダッシュボードにも配置されていません。作業用シートの可能性があります。",
                 "Not placed on any dashboard (it may be a working sheet).",
             ),
         )

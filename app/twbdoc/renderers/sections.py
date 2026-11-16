@@ -23,7 +23,7 @@ from .zones import render_zone_list, render_zone_mermaid
 NOT_APPLICABLE = ("(該当なし)", "(none)")
 
 THUMBNAIL_NOTE = (
-    "※ 画像はサムネイルであり、実際のダッシュボード全体画像ではありません。",
+    "※ 画像はサムネイルで、実際のダッシュボード全体の画像ではありません。",
     "* This image is the thumbnail stored in the workbook, "
     "not a full-size image of the dashboard.",
 )

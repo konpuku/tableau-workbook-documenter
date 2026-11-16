@@ -51,9 +51,9 @@ if ($null -eq $python) {
     Write-Host (T '[エラー] Python 3 が見つかりません。' '[Error] Python 3 was not found.') -ForegroundColor Red
     Write-Host (T '  対処方法 (いずれか):' '  How to fix (either):')
     Write-Host (T '  1. 管理者・IT 担当者に「同梱 Python のセットアップ」を依頼する' '  1. Ask your IT administrator to set up the bundled Python')
-    Write-Host (T '     (ネットワークに繋がる PC で app\setup_python.ps1 を実行し、フォルダごと配布)' '     (run app\setup_python.ps1 on a PC with internet access, then copy the folder)')
+    Write-Host (T '     ネットワークに繋がる PC で app\setup_python.ps1 を実行し、フォルダごと配布してもらう' '     (run app\setup_python.ps1 on a PC with internet access, then copy the folder)')
     Write-Host (T '  2. Python をインストールする https://www.python.org/downloads/' '  2. Install Python from https://www.python.org/downloads/')
-    Write-Host (T '     (インストール時に "Add python.exe to PATH" にチェック)' '     (check "Add python.exe to PATH" during installation)')
+    Write-Host (T '     インストール時に "Add python.exe to PATH" にチェックを入れる' '     (check "Add python.exe to PATH" during installation)')
     exit 3
 }
 
