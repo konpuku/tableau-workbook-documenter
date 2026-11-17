@@ -79,7 +79,7 @@ class TestOutputFolderLayout:
     ) -> None:
         doc_dir = self._run(tmp_path)
         content = (doc_dir / "テスト_Documentation.md").read_text(encoding="utf-8-sig")
-        assert "※ 画像はサムネイルであり、実際のダッシュボード全体画像ではありません。" in content
+        assert "※ 画像はサムネイルで、実際のダッシュボード全体の画像ではありません。" in content
         assert "![売上ダッシュボード レイアウト](images/layout_売上ダッシュボード.svg)" in content
         svg_path = doc_dir / "images" / "layout_売上ダッシュボード.svg"
         assert svg_path.is_file()
@@ -102,7 +102,7 @@ class TestOutputFolderLayout:
         doc_dir = tmp_path / f"画像なし_Documentation_{date_label}"
         content = (doc_dir / "画像なし_Documentation.md").read_text(encoding="utf-8-sig")
         assert not list((doc_dir / "images").glob("*.png"))
-        assert "サムネイルであり" not in content
+        assert "画像はサムネイルで" not in content
         # レイアウト簡略図はサムネイルが無くても生成される
         assert list((doc_dir / "images").glob("layout_*.svg"))
 

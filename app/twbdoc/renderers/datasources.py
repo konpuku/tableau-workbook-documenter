@@ -48,7 +48,7 @@ SEMANTIC_ROLE_LABELS = {
 
 DATA_MODEL_LEGEND = (
     "凡例: 枠 = 論理テーブル / 枠同士の点線 = リレーションシップ (ラベルは条件。"
-    "Tableau のリレーションシップは結合方法を固定せず、分析内容に応じて自動決定されます) / "
+    "Tableau のリレーションシップは結合方法を固定せず、分析内容に応じて自動で決まります) / "
     "枠内の実線 = 結合 (ラベルは結合種別と条件) / 内側の枠 = ユニオン / "
     "「キー:」 = リレーションシップで使用するキー項目",
     "Legend: box = logical table / dotted line between boxes = relationship "

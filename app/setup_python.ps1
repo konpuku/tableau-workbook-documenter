@@ -99,7 +99,7 @@ if ($WithHyperApi) {
             Write-Host (T '[エラー] tableauhyperapi の導入に失敗しました。' '[Error] Failed to install tableauhyperapi.') -ForegroundColor Red
             exit 1
         }
-        Write-Host (T '[完了] tableauhyperapi を同梱しました (.hyper のサンプル値取得が有効になります)。' '[Done] tableauhyperapi is bundled (sample values can be read from .hyper extracts).') -ForegroundColor Green
+        Write-Host (T '[完了] tableauhyperapi を同梱しました (.hyper からサンプル値を取得できるようになります)。' '[Done] tableauhyperapi is bundled (sample values can be read from .hyper extracts).') -ForegroundColor Green
     }
 }
 
