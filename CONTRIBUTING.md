@@ -77,6 +77,32 @@ Issue や PR のコメント、または Issue 本文に **`@claude`** と書く
 
 手動で今すぐ確認したいときは、Actions タブから **Upstream check** を `Run workflow` で実行できます。
 
+## リリース手順
+
+`v*` のタグを push すると、`.github/workflows/release.yml` が Windows のランナーで
+配布用 zip を 2 つ (同梱 Python 版・同梱 Python + tableauhyperapi 版) 作り、
+GitHub Release を作って添付します。
+
+1. `app/twbdoc/__init__.py` の `__version__` を上げる PR を出してマージする。
+2. `.github/release-notes/v<バージョン>.md` にリリースノートを書き、PR でマージする。
+   1 行目の `# v<バージョン> <タイトル>` がリリースのタイトル、2 行目以降が本文になります。
+   ファイルがなければ GitHub の自動生成ノートを使います。
+   形式は `tests/test_release_notes.py` が検査します。
+3. main の最新コミットにタグを付けて push する。
+
+   ```bash
+   git checkout main && git pull
+   git tag v0.8.1
+   git push origin v0.8.1
+   ```
+
+4. Actions タブで **Release** の完了を確認する。テスト、zip の作成、同梱 Python での起動確認が
+   通るとリリースが公開されます。
+
+- タグと `__version__` が一致しないと、ワークフローは止まります。
+- 失敗したときは直してから、Actions タブで **Release** を `Run workflow` で再実行できます
+  (タグを指定)。リリースが既にあれば zip だけを差し替えます。
+
 ---
 
 ## English summary
@@ -99,6 +125,11 @@ match official Tableau terminology (managed in `app/twbdoc/i18n.py`); `.ps1` fil
 UTF-8 **with** BOM, `.bat` files **without** BOM (checked by `tests/test_scripts.py`).
 
 Labels live in `.github/labels.yml` and sync on push to `main`.
+
+**Releases**: bump `__version__` in `app/twbdoc/__init__.py`, add release notes at
+`.github/release-notes/v<version>.md` (first line `# v<version> <title>`), then push a
+`v<version>` tag on `main`. `.github/workflows/release.yml` builds both distribution zips on a
+Windows runner and publishes the GitHub Release.
 
 Mention **`@claude`** in an issue or PR comment to have Claude Code work on it
 (requires an `ANTHROPIC_API_KEY` repo secret). Claude's PRs still go through CI and human review.
