@@ -19,12 +19,15 @@ on:
 
 jobs:
   claude:
-    # @claude の言及があるイベントのときだけ起動する
+    # @claude の言及があり、かつリポジトリオーナー本人の投稿のときだけ起動する
+    # （公開リポジトリなので、第三者のコメントで API キーや書き込み権限を使わせない）
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) == 'OWNER' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,14 +37,23 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 1
 
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      # 依存はエージェントに任せず、ここで requirements-dev.txt から固定的に入れる
+      - name: Install dev dependencies
+        run: python -m pip install -r requirements-dev.txt
+
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # PR 検証と同じ pytest をエージェントも実行できるようにする
+          # PR 検証と同じ pytest をエージェントも実行できるようにする（pip install は許可しない）
           claude_args: |
-            --allowedTools "Bash(python -m pytest:*),Bash(python -m pip install:*)"
+            --allowedTools "Bash(python -m pytest:*)"
