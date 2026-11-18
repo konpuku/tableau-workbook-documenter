@@ -1,0 +1,118 @@
+name: Release
+
+# v* タグの push で、配布用 zip (同梱 Python 版 2 種) を作って GitHub Release に添付する。
+#
+# - タグは app/twbdoc/__init__.py の __version__ と一致している必要がある (例: v0.8.1 ↔ "0.8.1")。
+# - リリースノートは .github/release-notes/<タグ>.md を使う。1 行目の「# 」見出しをリリースの
+#   タイトルにし、2 行目以降を本文にする。ファイルがなければ GitHub の自動生成ノートを使う。
+# - 同じタグのリリースが既にあれば、zip だけを差し替える (再実行用)。
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "リリースする既存のタグ (例: v0.8.1)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish (${{ github.event.inputs.tag || github.ref_name }})
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Check that the tag matches __version__
+        shell: pwsh
+        run: |
+          $init = Get-Content app/twbdoc/__init__.py -Raw
+          if ($init -notmatch '__version__\s*=\s*"([^"]+)"') { throw '__version__ not found in app/twbdoc/__init__.py' }
+          $expected = "v$($Matches[1])"
+          if ($env:TAG -ne $expected) { throw "Tag $env:TAG does not match __version__ ($expected)" }
+          Write-Host "Tag $env:TAG matches __version__"
+
+      # 同梱する embeddable 版 Python (build_distribution.ps1 の -PythonVersion 既定値) と
+      # マイナーバージョンをそろえる。tableauhyperapi はこの Python の pip で
+      # --target インストールされるため、ずれると依存パッケージのバイナリが合わなくなる。
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dev dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      # 利用者と同じ Windows PowerShell 5.1 で実行する。
+      # hyper なし版を先に作る (後から -WithHyperApi で同じ app\python に tableauhyperapi を足す)。
+      - name: Build zip (with Python)
+        shell: powershell
+        run: .\app\build_distribution.ps1
+
+      # setup_python.ps1 は py ランチャーを先に試すため、PY_PYTHON で上の Python を選ばせる。
+      - name: Build zip (with Python + tableauhyperapi)
+        shell: powershell
+        env:
+          PY_PYTHON: "3.14"
+        run: .\app\build_distribution.ps1 -WithHyperApi
+
+      - name: Smoke test the bundled Python
+        shell: pwsh
+        run: |
+          $py = 'app\python\python.exe'
+          & $py -c "import encodings, tableauhyperapi; print('stdlib and tableauhyperapi OK')"
+          if ($LASTEXITCODE -ne 0) { throw 'The bundled Python could not import its modules' }
+          $version = & $py -m twbdoc --version
+          if ($LASTEXITCODE -ne 0) { throw 'twbdoc did not start with the bundled Python' }
+          Write-Host $version
+          if ($version -ne "twbdoc $($env:TAG.TrimStart('v'))") { throw "Unexpected version: $version" }
+          $zips = @(Get-ChildItem dist -Filter '*.zip')
+          if ($zips.Count -ne 2) { throw "Expected 2 zip files in dist, found $($zips.Count)" }
+          $zips | ForEach-Object { Write-Host "$($_.Name) ($([math]::Round($_.Length / 1MB, 1)) MB)" }
+
+      - name: Create or update the GitHub Release
+        shell: pwsh
+        run: |
+          $zips = @(Get-ChildItem dist -Filter '*.zip' | ForEach-Object FullName)
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $env:TAG already exists. Replacing its zip files."
+            gh release upload $env:TAG @zips --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'gh release upload failed' }
+            exit 0
+          }
+
+          $notesPath = ".github/release-notes/$env:TAG.md"
+          if (Test-Path $notesPath) {
+            $lines = @(Get-Content $notesPath -Encoding utf8)
+            if ($lines.Count -gt 0 -and $lines[0] -match '^#\s+(.+)$') {
+              $title = $Matches[1].Trim()
+              $body = $lines | Select-Object -Skip 1
+            } else {
+              $title = $env:TAG
+              $body = $lines
+            }
+            $bodyFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+            (($body -join "`n").Trim() + "`n") | Set-Content $bodyFile -Encoding utf8NoBOM -NoNewline
+            gh release create $env:TAG @zips --verify-tag --title $title --notes-file $bodyFile
+          } else {
+            Write-Host "$notesPath not found. Using generated release notes."
+            gh release create $env:TAG @zips --verify-tag --title $env:TAG --generate-notes
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
