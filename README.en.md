@@ -77,6 +77,8 @@ Folder and file names are always in English so that they are safe on any system.
 Download a bundled zip from
 [Releases](https://github.com/konpuku/tableau-workbook-documenter/releases),
 extract it and distribute it. Users need no installation and no admin rights.
+Besides `generate_doc.bat` (documentation), the zip contains `live_ci.bat` (Live CI) and
+`install_skill.bat` (installs the Tableau Agent skill).
 
 | Asset | Contents | Size |
 | --- | --- | --- |
@@ -147,7 +149,9 @@ Exit codes: 0 pass, 1 parse error, 2 input error, 5 findings at or above `--fail
 `placeholder-calc-name`, `uncommented-complex-calc`. Tune them with a `.twbdoc.json`
 (`rules`, `ignore`, `fail_on`) next to the workbook.
 
-`app\install_skill.ps1` installs the **twbdoc-ci** skill for the Tableau Agent. After
+Double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
+The skill runs with the Python found at install time (the bundled Python first), so it
+works from the distributed zip on PCs without Python. After
 `/reload-skills`, ask the agent to "run the CI check": it explains each finding, proposes
 a fix, and applies only the fixes you approve, using Tableau MCP tools, then checks again.
 
