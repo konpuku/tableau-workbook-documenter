@@ -85,6 +85,28 @@ jobs:
           $zips = @(Get-ChildItem dist -Filter '*.zip')
           if ($zips.Count -ne 2) { throw "Expected 2 zip files in dist, found $($zips.Count)" }
           $zips | ForEach-Object { Write-Host "$($_.Name) ($([math]::Round($_.Length / 1MB, 1)) MB)" }
+          # 利用者が使うファイルが zip に入っているか確認する
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $required = @(
+            'tableau-workbook-documenter/generate_doc.bat',
+            'tableau-workbook-documenter/live_ci.bat',
+            'tableau-workbook-documenter/install_skill.bat',
+            'tableau-workbook-documenter/app/live_ci.ps1',
+            'tableau-workbook-documenter/app/install_skill.ps1',
+            'tableau-workbook-documenter/app/skills/twbdoc-ci/SKILL.md',
+            'tableau-workbook-documenter/app/skills/twbdoc-ci/scripts/twbdoc_ci.py',
+            'tableau-workbook-documenter/app/twbdoc/assets/live.html'
+          )
+          foreach ($zip in $zips) {
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+            try {
+              $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+              $missing = @($required | Where-Object { $entries -notcontains $_ })
+              if ($missing.Count -gt 0) { throw "$($zip.Name) is missing: $($missing -join ', ')" }
+            } finally {
+              $archive.Dispose()
+            }
+          }
 
       - name: Create or update the GitHub Release
         shell: pwsh

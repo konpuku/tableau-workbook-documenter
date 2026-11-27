@@ -7,6 +7,10 @@ Windows PowerShell 5.1 は BOM なしの .ps1 を ANSI (cp932) として読む�
 
 from __future__ import annotations
 
+import json
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -31,12 +35,15 @@ class TestScriptEncodings:
             raw.decode("utf-8-sig")
 
     def test_bat_は_BOM_なし(self) -> None:
-        raw = (ROOT_DIR / "generate_doc.bat").read_bytes()
-        assert not raw.startswith(UTF8_BOM), (
-            "generate_doc.bat に BOM を付けないでください "
-            "(cmd.exe が 1 行目を誤認識するため)"
-        )
-        raw.decode("utf-8")
+        bat_files = list(ROOT_DIR.glob("*.bat"))
+        assert bat_files, "bat ファイルが見つかりません"
+        for bat in bat_files:
+            raw = bat.read_bytes()
+            assert not raw.startswith(UTF8_BOM), (
+                f"{bat.name} に BOM を付けないでください "
+                "(cmd.exe が 1 行目を誤認識するため)"
+            )
+            raw.decode("utf-8")
 
 
 class TestLayout:
@@ -51,6 +58,80 @@ class TestLayout:
     def test_bat_は_app_内の_ps1_を呼ぶ(self) -> None:
         content = (ROOT_DIR / "generate_doc.bat").read_text(encoding="utf-8")
         assert "app\\generate_doc.ps1" in content
+
+    @pytest.mark.parametrize(
+        ("bat", "ps1"),
+        [
+            ("generate_doc.bat", "generate_doc.ps1"),
+            ("live_ci.bat", "live_ci.ps1"),
+            ("install_skill.bat", "install_skill.ps1"),
+        ],
+    )
+    def test_利用者向けの_bat_がそろっている(self, bat: str, ps1: str) -> None:
+        content = (ROOT_DIR / bat).read_text(encoding="utf-8")
+        assert f"app\\{ps1}" in content
+        assert (ROOT_DIR / "app" / ps1).exists()
+
+    def test_すべての_bat_が呼ぶ_ps1_が実在する(self) -> None:
+        for bat in ROOT_DIR.glob("*.bat"):
+            content = bat.read_text(encoding="utf-8")
+            for name in re.findall(r"app\\([\w.-]+\.ps1)", content):
+                assert (ROOT_DIR / "app" / name).exists(), f"{bat.name}: app/{name}"
+
+    def test_Tableau_Agent_スキルは_app_配下にある(self) -> None:
+        """配布用 zip は app フォルダを丸ごと入れるため、スキルも app 配下に置く。"""
+        skill = ROOT_DIR / "app" / "skills" / "twbdoc-ci"
+        assert (skill / "SKILL.md").exists()
+        assert (skill / "scripts" / "twbdoc_ci.py").exists()
+        assert not (ROOT_DIR / "skills").exists()
+
+
+class TestDistribution:
+    """配布用 zip (build_distribution.ps1) に利用者向けのファイルが入ること。"""
+
+    def _script(self) -> str:
+        return (ROOT_DIR / "app" / "build_distribution.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+
+    def test_ルートの_bat_をすべて含める(self) -> None:
+        script = self._script()
+        assert "Get-ChildItem $rootDir -Filter '*.bat'" in script
+        # bat を名前で列挙しない (bat を追加したときの入れ忘れを防ぐ)
+        assert "'generate_doc.bat'" not in script
+
+    def test_app_フォルダを丸ごと含める(self) -> None:
+        assert "Copy-Item $scriptDir $appDest -Recurse" in self._script()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows PowerShell が必要")
+class TestInstallSkill:
+    def test_run_ci_cmd_と_config_を書き出す(self, tmp_path: Path) -> None:
+        result = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(ROOT_DIR / "app" / "install_skill.ps1"),
+                "-Destination", str(tmp_path),
+            ],
+            capture_output=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, (result.stdout + result.stderr).decode(
+            "utf-8", "replace"
+        )
+        skill = tmp_path / "twbdoc-ci"
+        assert (skill / "SKILL.md").exists()
+        config = json.loads(
+            (skill / "scripts" / "config.json").read_text(encoding="utf-8")
+        )
+        assert Path(config["twbdoc_app"]) == ROOT_DIR / "app"
+        assert Path(config["python"]).exists()
+        run_cmd = (skill / "scripts" / "run_ci.cmd").read_bytes()
+        assert not run_cmd.startswith(UTF8_BOM)
+        text = run_cmd.decode("utf-8")
+        assert "chcp 65001" in text
+        assert config["python"] in text
+        assert "twbdoc_ci.py" in text
 
 
 class TestBundledPythonEncryptionSafety:

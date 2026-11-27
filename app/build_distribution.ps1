@@ -52,10 +52,20 @@ $stage = Join-Path $env:TEMP "twbdoc_dist_$([guid]::NewGuid().ToString('N'))"
 $packageRoot = Join-Path $stage 'tableau-workbook-documenter'
 New-Item -ItemType Directory -Force $packageRoot | Out-Null
 try {
-    foreach ($file in @('generate_doc.bat', 'README.md', 'LICENSE')) {
+    # 利用者が使う bat (generate_doc.bat・live_ci.bat・install_skill.bat 等) は
+    # 一覧を手で持つと追加時に漏れるため、ルートの *.bat をすべて含める
+    $batFiles = @(Get-ChildItem $rootDir -Filter '*.bat' -File)
+    if ($batFiles.Count -eq 0) {
+        throw (T 'ルートに bat が見つかりません。' 'No .bat files were found in the root folder.')
+    }
+    foreach ($bat in $batFiles) {
+        Copy-Item $bat.FullName $packageRoot
+    }
+    foreach ($file in @('README.md', 'LICENSE')) {
         Copy-Item (Join-Path $rootDir $file) $packageRoot
     }
     $appDest = Join-Path $packageRoot 'app'
+    # app フォルダには twbdoc 本体・起動用 ps1・Tableau Agent スキル (app\skills) が入る
     Copy-Item $scriptDir $appDest -Recurse
     Get-ChildItem $appDest -Recurse -Directory -Filter '__pycache__' |
         Remove-Item -Recurse -Force
@@ -79,7 +89,7 @@ try {
     Compress-Archive -Path $packageRoot -DestinationPath $zipPath -CompressionLevel Optimal
     $sizeMb = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
     Write-Host (T "[完了] $zipPath ($sizeMb MB)" "[Done] $zipPath ($sizeMb MB)") -ForegroundColor Green
-    Write-Host (T 'この zip を配布してください。利用者は展開して generate_doc.bat を使うだけです。' 'Distribute this zip. Users just extract it and use generate_doc.bat.')
+    Write-Host (T 'この zip を配布してください。利用者は展開して generate_doc.bat (設計書) や live_ci.bat (Live CI) を使うだけです。' 'Distribute this zip. Users just extract it and use generate_doc.bat (documentation) or live_ci.bat (Live CI).')
 } finally {
     if (Test-Path $stage) {
         Remove-Item -Recurse -Force $stage

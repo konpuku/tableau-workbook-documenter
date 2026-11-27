@@ -71,6 +71,8 @@ python -m twbdoc book1.twbx book2.twb --output C:\docs  # 複数指定・出力�
 最も簡単な方法です。[Releases](https://github.com/konpuku/tableau-workbook-documenter/releases) から
 Python 同梱版の zip をダウンロードし、展開して配布するだけです。
 利用者側でのインストール・ダウンロード・管理者権限は一切不要です。
+zip には設計書生成 (`generate_doc.bat`) に加えて、Live CI (`live_ci.bat`) と
+Tableau Agent スキルのインストーラー (`install_skill.bat`) も入っています。
 
 | アセット | 内容 | サイズ目安 |
 | --- | --- | --- |
@@ -179,12 +181,11 @@ python -m twbdoc check *.twbx --fail-on warning          # 警告以上で終了
 
 ### Tableau Agent スキル (検出 → 修正提案 → 承認後に修正)
 
-```powershell
-powershell -ExecutionPolicy Bypass -File app\install_skill.ps1
-```
-
-`ドキュメント\My Tableau Repository\Tableau Agent\skills\twbdoc-ci` にスキルを入れ、
-Tableau Agent のチャットで `/reload-skills` を実行します。「CI チェックして」と頼むと、
+`install_skill.bat` をダブルクリックすると、
+`ドキュメント\My Tableau Repository\Tableau Agent\skills\twbdoc-ci` にスキルが入ります。
+その後、Tableau Agent のチャットで `/reload-skills` を実行します。
+スキルはインストール時に見つけた Python (同梱 Python を優先) で動くため、
+Python 未導入の PC でも配布用 zip のまま使えます。「CI チェックして」と頼むと、
 エージェントが検出を説明し、修正案 (シート名の変更、計算式へのコメント追加、参照の修正など) を示し、
 **承認したものだけ** Tableau MCP のツールで適用して再チェックします。
 計算フィールドの削除は API が無いため、手順の案内にとどめます。
