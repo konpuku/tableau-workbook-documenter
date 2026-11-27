@@ -302,6 +302,11 @@ MINIMAL_TWB = """<?xml version='1.0' encoding='utf-8' ?>
 
 
 @pytest.fixture
+def minimal_twb_xml() -> str:
+    return MINIMAL_TWB
+
+
+@pytest.fixture
 def minimal_root() -> ET.Element:
     """最小構成の twb XML ルート要素。"""
     return ET.fromstring(MINIMAL_TWB)

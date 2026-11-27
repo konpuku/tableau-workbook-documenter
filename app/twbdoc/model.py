@@ -253,6 +253,8 @@ class Datasource:
     ds_filters: tuple[WorksheetFilter, ...] = ()
     extract: ExtractInfo | None = None
     field_changes: tuple[FieldChange, ...] = ()
+    # セット・グループ・結合フィールド (<group>) の内部名 ('[xxx]' 形式)
+    group_names: tuple[str, ...] = ()
 
     @property
     def display_name(self) -> str:

@@ -115,6 +115,38 @@ typically target:
 If it still fails (exit code `4`), `.pyc` or `.dll` files may also be encrypted.
 **Ask your IT administrator to exclude the tool folder from encryption/DRM.**
 
+## Live CI: check workbooks while you edit them in Tableau Studio
+
+`python -m twbdoc watch` reads the workbook open in **Tableau Studio** (Tableau Desktop
+2026.3.1+) every few seconds, **without saving**, and keeps the documentation and CI
+findings up to date on a local dashboard at http://127.0.0.1:8765/. It follows edits made
+by people and by the Tableau Agent alike. Turn on **Help > Settings & Performance >
+External Client API Access** and restart Tableau first, then double-click `live_ci.bat`.
+
+The dashboard shows findings (with a "New" badge for ones the last edit introduced),
+a change history (fields, sheets and dashboards added, removed or changed; findings
+new or resolved) and the latest documentation. Files are written to `<name>.twbdoc/`
+next to the workbook (`spec.md`, `spec.html`, `findings.json`, `history.jsonl`), so the
+spec can be versioned in Git alongside the workbook. Access is read-only and local only.
+
+`python -m twbdoc check` runs the same rules for CI pipelines:
+
+```bash
+python -m twbdoc check book.twbx --format json --fail-on warning
+python -m twbdoc check --studio --format md      # the workbook open in Tableau Studio
+```
+
+Exit codes: 0 pass, 1 parse error, 2 input error, 5 findings at or above `--fail-on`,
+6 Tableau Studio not reachable. Rules: `invalid-field`, `broken-reference`, `unused-calc`,
+`unused-parameter`, `duplicate-formula`, `extract-row-limit`, `orphan-worksheet`,
+`unused-datasource`, `deep-dependency`, `comment-coverage`, `default-sheet-name`,
+`placeholder-calc-name`, `uncommented-complex-calc`. Tune them with a `.twbdoc.json`
+(`rules`, `ignore`, `fail_on`) next to the workbook.
+
+`app\install_skill.ps1` installs the **twbdoc-ci** skill for the Tableau Agent. After
+`/reload-skills`, ask the agent to "run the CI check": it explains each finding, proposes
+a fix, and applies only the fixes you approve, using Tableau MCP tools, then checks again.
+
 ## What the documentation contains
 
 | Chapter | Contents |

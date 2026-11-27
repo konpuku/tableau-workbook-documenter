@@ -46,6 +46,11 @@ def _parse_datasource(element: ET.Element) -> Datasource:
         ds_filters=parse_ds_filters(element),
         extract=parse_extract(element),
         field_changes=parse_field_changes(element),
+        group_names=tuple(
+            name
+            for group in element.findall("group")
+            if (name := group.get("name", ""))
+        ),
     )
 
 
