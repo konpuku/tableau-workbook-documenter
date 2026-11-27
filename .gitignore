@@ -17,6 +17,8 @@ app/python/
 *_Documentation.md
 *_設計書_*/
 *_Documentation_*/
+*.twbdoc/
+twbdoc_live/
 
 # OS
 Thumbs.db

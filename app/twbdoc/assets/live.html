@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>twbdoc Live CI</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1d2430; --muted: #5d6878; --line: #e1e5ea;
+  --error: #c62828; --error-bg: #fdecec; --warning: #a15c00; --warning-bg: #fff4e0;
+  --info: #1f5fa8; --info-bg: #e8f1fb; --ok: #2e7d32; --accent: #1f5fa8; --new: #6a1b9a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c; --panel: #1c2027; --text: #e6e9ee; --muted: #9aa4b2; --line: #2c323c;
+    --error: #ff7b7b; --error-bg: #3a1f22; --warning: #ffb74d; --warning-bg: #3a2c17;
+    --info: #7fb3ff; --info-bg: #1b2a3e; --ok: #81c784; --accent: #7fb3ff; --new: #ce93d8;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 "Segoe UI", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 16px; margin: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.on { background: var(--ok); } .dot.off { background: var(--error); }
+.badge { font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.badge.unsaved { color: var(--warning); border-color: var(--warning); }
+.badge.new { color: var(--new); border-color: var(--new); }
+.muted { color: var(--muted); }
+main { padding: 16px; max-width: 1280px; margin: 0 auto; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; cursor: pointer; }
+.card.active { outline: 2px solid var(--accent); }
+.card .n { font-size: 28px; font-weight: 600; }
+.card.error .n { color: var(--error); } .card.warning .n { color: var(--warning); } .card.info .n { color: var(--info); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.tabs button { background: none; border: none; color: var(--muted); padding: 8px 12px; cursor: pointer; font: inherit;
+  border-bottom: 2px solid transparent; }
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; }
+tr:last-child td { border-bottom: none; }
+.sev { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
+.sev.error { color: var(--error); background: var(--error-bg); }
+.sev.warning { color: var(--warning); background: var(--warning-bg); }
+.sev.info { color: var(--info); background: var(--info-bg); }
+code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.empty { padding: 24px; text-align: center; color: var(--muted); }
+.event { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.event:last-child { border-bottom: none; }
+.event ul { margin: 4px 0 0; padding-left: 20px; }
+.added { color: var(--ok); } .removed { color: var(--error); } .changed { color: var(--warning); }
+.resolved { color: var(--ok); }
+.banner { background: var(--error-bg); color: var(--error); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: none; }
+iframe { width: 100%; height: calc(100vh - 260px); min-height: 480px; border: 0; background: #fff; }
+.table-wrap { overflow-x: auto; }
+@media (max-width: 640px) { .cards { grid-template-columns: 1fr; } th.hide-sm, td.hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="dot"></span>
+  <h1 id="title">twbdoc Live CI</h1>
+  <span class="badge unsaved" id="unsaved" hidden></span>
+  <span class="muted" id="source"></span>
+  <span class="muted" id="updated" style="margin-left:auto"></span>
+</header>
+<main>
+  <div class="banner" id="banner"></div>
+  <div class="cards">
+    <div class="card error" data-sev="error"><div class="muted" data-i18n="error"></div><div class="n" id="n-error">0</div></div>
+    <div class="card warning" data-sev="warning"><div class="muted" data-i18n="warning"></div><div class="n" id="n-warning">0</div></div>
+    <div class="card info" data-sev="info"><div class="muted" data-i18n="info"></div><div class="n" id="n-info">0</div></div>
+  </div>
+  <div class="tabs">
+    <button class="active" data-tab="findings" data-i18n="findings"></button>
+    <button data-tab="history" data-i18n="history"></button>
+    <button data-tab="spec" data-i18n="spec"></button>
+  </div>
+  <section id="tab-findings" class="panel table-wrap"></section>
+  <section id="tab-history" class="panel" hidden></section>
+  <section id="tab-spec" class="panel" hidden><iframe id="spec" title="spec"></iframe></section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var I18N = {
+    ja: { error: "エラー", warning: "警告", info: "情報", findings: "検出", history: "変更履歴", spec: "設計書",
+      unsaved: "未保存の変更あり", connected: "接続中", disconnected: "未接続", updated: "最終更新 ",
+      severity: "重要度", rule: "ルール", target: "対象", message: "内容", none: "検出はありません 🎉",
+      waiting: "ワークブックを待っています…", isnew: "新規", initial: "監視開始", resolvedL: "解消: ",
+      newL: "新規の検出: ", noevents: "まだ変更はありません", studio: "Tableau Studio", file: "保存済みファイル",
+      kinds: { added: "追加", removed: "削除", changed: "変更" },
+      cats: { calc: "計算フィールド", parameter: "パラメーター", worksheet: "ワークシート", dashboard: "ダッシュボード", datasource: "データソース", action: "アクション" } },
+    en: { error: "Errors", warning: "Warnings", info: "Info", findings: "Findings", history: "Changes", spec: "Documentation",
+      unsaved: "Unsaved changes", connected: "Connected", disconnected: "Disconnected", updated: "Updated ",
+      severity: "Severity", rule: "Rule", target: "Target", message: "Message", none: "No findings 🎉",
+      waiting: "Waiting for the workbook…", isnew: "New", initial: "Started watching", resolvedL: "Resolved: ",
+      newL: "New findings: ", noevents: "No changes yet", studio: "Tableau Studio", file: "Saved file",
+      kinds: { added: "Added", removed: "Removed", changed: "Changed" },
+      cats: { calc: "Calculated field", parameter: "Parameter", worksheet: "Worksheet", dashboard: "Dashboard", datasource: "Data source", action: "Action" } }
+  };
+  var L = I18N.ja, filter = null, lastVersion = -1, specVersion = -1, currentTab = "findings", state = null;
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "class") node.className = attrs[k]; else if (k === "text") node.textContent = attrs[k]; else node.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) node.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return node;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function applyLang(lang) {
+    L = I18N[lang] || I18N.ja;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(function (n) { n.textContent = L[n.getAttribute("data-i18n")]; });
+  }
+
+  function renderFindings() {
+    var host = document.getElementById("tab-findings");
+    clear(host);
+    var rows = state.findings.filter(function (f) { return !filter || f.severity === filter; });
+    if (!state.workbook) { host.appendChild(el("div", { class: "empty", text: L.waiting })); return; }
+    if (!rows.length) { host.appendChild(el("div", { class: "empty", text: L.none })); return; }
+    var tbody = el("tbody");
+    rows.forEach(function (f) {
+      var msg = el("td", {}, [el("div", { text: f.message })]);
+      if (f.fix_hint) msg.appendChild(el("div", { class: "hint", text: "→ " + f.fix_hint }));
+      var target = el("td", {}, [f.target]);
+      if (f.is_new) { target.appendChild(document.createTextNode(" ")); target.appendChild(el("span", { class: "badge new", text: L.isnew })); }
+      tbody.appendChild(el("tr", {}, [
+        el("td", {}, [el("span", { class: "sev " + f.severity, text: L[f.severity] || f.severity })]),
+        el("td", { class: "hide-sm" }, [el("code", { text: f.rule })]),
+        target, msg
+      ]));
+    });
+    host.appendChild(el("table", {}, [
+      el("thead", {}, [el("tr", {}, [el("th", { text: L.severity }), el("th", { class: "hide-sm", text: L.rule }), el("th", { text: L.target }), el("th", { text: L.message })])]),
+      tbody
+    ]));
+  }
+
+  function renderHistory() {
+    var host = document.getElementById("tab-history");
+    clear(host);
+    if (!state.events.length) { host.appendChild(el("div", { class: "empty", text: L.noevents })); return; }
+    state.events.forEach(function (ev) {
+      var box = el("div", { class: "event" }, [el("strong", { text: ev.at.replace("T", " ") }), " "]);
+      if (ev.unsaved) box.appendChild(el("span", { class: "badge unsaved", text: L.unsaved }));
+      if (ev.initial) box.appendChild(el("span", { class: "muted", text: " " + L.initial }));
+      var list = el("ul");
+      ev.changes.forEach(function (c) {
+        list.appendChild(el("li", {}, [
+          el("span", { class: c.kind, text: (L.kinds[c.kind] || c.kind) }), " ",
+          (L.cats[c.category] || c.category) + " ", el("strong", { text: c.target }),
+          c.detail ? el("span", { class: "muted", text: " — " + c.detail }) : null
+        ]));
+      });
+      if (ev.new.length) list.appendChild(el("li", {}, [el("span", { class: "badge new", text: L.newL.trim() }), " " + ev.new.map(function (f) { return f.rule + ": " + f.target; }).join(", ")]));
+      if (ev.resolved.length) list.appendChild(el("li", { class: "resolved", text: L.resolvedL + ev.resolved.map(function (f) { return f.rule + ": " + f.target; }).join(", ") }));
+      if (list.childNodes.length) box.appendChild(list);
+      host.appendChild(box);
+    });
+  }
+
+  function renderHeader() {
+    var st = state.status || {};
+    document.getElementById("dot").className = "dot " + (st.connected ? "on" : "off");
+    document.getElementById("title").textContent = state.workbook || "twbdoc Live CI";
+    document.title = (state.summary.error + state.summary.warning ? "⚠ " : "") + (state.workbook || "twbdoc") + " — Live CI";
+    var unsaved = document.getElementById("unsaved");
+    unsaved.hidden = !st.unsaved; unsaved.textContent = L.unsaved;
+    document.getElementById("source").textContent = (L[st.source] || st.source || "") + " · " + (st.connected ? L.connected : L.disconnected);
+    document.getElementById("updated").textContent = state.updated_at ? L.updated + state.updated_at.replace("T", " ") : "";
+    ["error", "warning", "info"].forEach(function (s) { document.getElementById("n-" + s).textContent = state.summary[s] || 0; });
+    var banner = document.getElementById("banner");
+    var msg = state.error || st.error;
+    banner.style.display = msg ? "block" : "none"; banner.textContent = msg || "";
+  }
+
+  function refreshSpec() {
+    if (currentTab !== "spec" || specVersion === state.version) return;
+    specVersion = state.version;
+    document.getElementById("spec").src = "/spec.html?v=" + state.version;
+  }
+
+  function render() { renderHeader(); renderFindings(); renderHistory(); refreshSpec(); }
+
+  function load() {
+    fetch("/api/state", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (s) {
+      if (s.version === lastVersion) return;
+      lastVersion = s.version; state = s; applyLang(s.lang); render();
+    }).catch(function () {});
+  }
+
+  document.querySelectorAll(".card").forEach(function (card) {
+    card.addEventListener("click", function () {
+      var sev = card.getAttribute("data-sev");
+      filter = filter === sev ? null : sev;
+      document.querySelectorAll(".card").forEach(function (c) { c.classList.toggle("active", c.getAttribute("data-sev") === filter); });
+      if (state) renderFindings();
+    });
+  });
+  document.querySelectorAll(".tabs button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      currentTab = btn.getAttribute("data-tab");
+      document.querySelectorAll(".tabs button").forEach(function (b) { b.classList.toggle("active", b === btn); });
+      ["findings", "history", "spec"].forEach(function (t) { document.getElementById("tab-" + t).hidden = t !== currentTab; });
+      if (state) refreshSpec();
+    });
+  });
+
+  applyLang("ja");
+  load();
+  if (window.EventSource) {
+    var es = new EventSource("/events");
+    es.addEventListener("update", load);
+    es.onerror = function () { setTimeout(load, 2000); };
+  } else {
+    setInterval(load, 2000);
+  }
+})();
+</script>
+</body>
+</html>

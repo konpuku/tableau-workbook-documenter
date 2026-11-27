@@ -108,6 +108,87 @@ cd twb_doc_generator\app
 それでも起動できない場合 (終了コード `4`)、`.pyc` や `.dll` まで暗号化対象になっている可能性があります。
 **IT 管理者に、ツールのフォルダを暗号化・DRM の対象外にするようご相談ください。**
 
+## Live CI: Tableau Studio の編集をリアルタイムに検査する
+
+Tableau Desktop 2026.3.1 以降の **Tableau Studio** で開いているワークブックを、
+**保存しなくても** 数秒ごとに読み取り、設計書と CI チェック結果を自動更新します。
+人が編集しても、Tableau Agent (Studio 内のエージェント) が編集しても同じように追従します。
+
+### 準備
+
+1. Tableau Desktop で **ヘルプ > 設定とパフォーマンス > External Client API Access** をオンにして再起動
+2. Python 3.10 以上 (または同梱 Python)
+
+### 監視を始める
+
+`live_ci.bat` をダブルクリックすると、ブラウザでダッシュボード (http://127.0.0.1:8765/) が開きます。
+
+- **検出**: エラー / 警告 / 情報の件数と一覧。直前の編集で増えたものに「新規」バッジ
+- **変更履歴**: 計算フィールド・シート・ダッシュボード等の追加 / 削除 / 変更と、検出の新規 / 解消
+- **設計書**: 最新の設計書 HTML
+
+ワークブックの隣の `<名前>.twbdoc/` に `spec.md` / `spec.html` / `findings.json` / `history.jsonl`
+を書き出します (未保存のワークブックはカレントフォルダの `twbdoc_live/`)。
+`spec.md` をワークブックと一緒に Git 管理すると、変更が差分として残ります。
+
+```bash
+cd app
+python -m twbdoc watch                  # Studio で開いているワークブックを監視
+python -m twbdoc watch book.twbx        # 保存済みファイルを監視 (Studio なし)
+python -m twbdoc watch --open --port 8765 --doc-interval 5 --out ./ci
+```
+
+Tableau は変更イベントを提供しないため、`GET /v0/workbook` を 2 秒ごと、
+ワークブック全体の XML (`GET /v0/workbook/document`) を構成変化時と最大 5 秒ごとに取得します。
+通信は 127.0.0.1 のみ・読み取り専用で、ワークブックを変更することはありません。
+
+### CI チェック (check)
+
+```bash
+python -m twbdoc check book.twbx                         # テキスト表示
+python -m twbdoc check book.twbx --format json -o r.json # JSON (機械可読)
+python -m twbdoc check --studio --format md              # 編集中のワークブックを検査
+python -m twbdoc check *.twbx --fail-on warning          # 警告以上で終了コード 5
+```
+
+終了コード: 0 = 合格 / 1 = 解析エラー / 2 = 入力エラー / 5 = `--fail-on` 以上の検出あり /
+6 = Tableau Studio に接続できない。GitHub Actions などの CI にもそのまま組み込めます。
+
+| ルール | 重要度 | 内容 |
+|---|---|---|
+| `invalid-field` | エラー | シェルフ上の無効なフィールド (Studio の診断 API、`--studio` / watch のみ) |
+| `broken-reference` | 警告 | 計算式がワークブック内に存在しないフィールドを参照 |
+| `unused-calc` / `unused-parameter` | 警告 | どこからも参照されない計算フィールド / パラメーター |
+| `duplicate-formula` | 警告 | 同一の計算式 |
+| `extract-row-limit` | 警告 | 抽出に行数制限 |
+| `orphan-worksheet` / `unused-datasource` | 情報 | ダッシュボード未配置のシート / 未使用データソース |
+| `deep-dependency` / `comment-coverage` | 情報 | 深い依存チェーン / コメント記載率 |
+| `default-sheet-name` | 情報 | 「シート 1」など既定名のまま |
+| `placeholder-calc-name` | 情報 | 「(コピー)」「計算1」など仮の名前の計算フィールド |
+| `uncommented-complex-calc` | 情報 | コメントのない長い計算式 |
+
+ワークブックと同じフォルダ (または親フォルダ) の `.twbdoc.json` でルールを調整できます。
+
+```json
+{
+  "rules": { "orphan-worksheet": "off", "default-sheet-name": "warning" },
+  "ignore": ["unused-calc:3f2a9c1b0d", { "rule": "unused-calc", "target": "検証用フラグ" }],
+  "fail_on": "warning"
+}
+```
+
+### Tableau Agent スキル (検出 → 修正提案 → 承認後に修正)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File app\install_skill.ps1
+```
+
+`ドキュメント\My Tableau Repository\Tableau Agent\skills\twbdoc-ci` にスキルを入れ、
+Tableau Agent のチャットで `/reload-skills` を実行します。「CI チェックして」と頼むと、
+エージェントが検出を説明し、修正案 (シート名の変更、計算式へのコメント追加、参照の修正など) を示し、
+**承認したものだけ** Tableau MCP のツールで適用して再チェックします。
+計算フィールドの削除は API が無いため、手順の案内にとどめます。
+
 ## 出力される設計書の内容
 
 | 章 | 内容 |

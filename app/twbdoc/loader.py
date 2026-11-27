@@ -22,11 +22,32 @@ def load_workbook_xml(path: Path, t: Translator = JA) -> ET.Element:
     - .twb : そのまま XML として解析する
     """
     validated = _validate_path(path, t)
+    return _parse_xml(read_workbook_xml_bytes(validated, t), validated, t)
+
+
+def read_workbook_xml_bytes(path: Path, t: Translator = JA) -> bytes:
+    """twbx / twb ファイルから解析前の XML バイト列を返す (変更検知用)。"""
+    validated = _validate_path(path, t)
     if validated.suffix.lower() == ".twbx":
-        xml_bytes = _read_twb_from_twbx(validated, t)
-    else:
-        xml_bytes = _read_file(validated, t)
-    return _parse_xml(xml_bytes, validated, t)
+        return _read_twb_from_twbx(validated, t)
+    return _read_file(validated, t)
+
+
+def parse_workbook_xml_bytes(
+    xml_bytes: bytes, name: str, t: Translator = JA
+) -> ET.Element:
+    """メモリ上の XML (Tableau Studio から取得した文書など) を解析する。
+
+    ファイル入力と同じ DTD/エンティティ拒否・サイズ上限を適用する。
+    """
+    if len(xml_bytes) > MAX_TWB_UNCOMPRESSED_BYTES:
+        raise InvalidFileError(
+            t(
+                f"XML のサイズが上限を超えています: {name} ({len(xml_bytes):,} bytes)",
+                f"The XML exceeds the size limit: {name} ({len(xml_bytes):,} bytes)",
+            )
+        )
+    return _parse_xml(xml_bytes, Path(name or "workbook.twb"), t)
 
 
 def _validate_path(path: Path, t: Translator) -> Path:

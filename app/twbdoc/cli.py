@@ -2,6 +2,8 @@
 
 使い方:
     python -m twbdoc <file.twbx> [<file2.twb> ...] [--output <dir>] [--lang ja|en]
+    python -m twbdoc check <file.twbx | --studio> [--format json] [--fail-on warning]
+    python -m twbdoc watch [<file.twbx>] [--port 8765] [--open]
 
 各入力ファイルと同じフォルダ (または --output 指定先) に
 「<ファイル名>_Documentation_yyyymmdd」フォルダを作成し、その中に
@@ -19,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import __version__
+from .commands import SUBCOMMANDS, run_subcommand
 from .errors import InvalidFileError, ParseError, TwbDocError
 from .i18n import LANGUAGE_CHOICES, Translator, get_translator
 from .loader import load_workbook_xml
@@ -44,6 +47,9 @@ IMAGES_DIR_NAME = "images"
 def main(argv: list[str] | None = None) -> int:
     """エントリポイント。成功 0 / 解析エラー 1 / 入力エラー 2 を返す。"""
     _configure_stdout()
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in SUBCOMMANDS:
+        return run_subcommand(argv)
     args = _parse_args(argv)
     t = get_translator(args.lang)
     exit_code = EXIT_OK
