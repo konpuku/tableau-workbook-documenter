@@ -68,6 +68,7 @@ iframe { width: 100%; height: calc(100vh - 260px); min-height: 480px; border: 0;
   <h1 id="title">twbdoc Live CI</h1>
   <span class="badge unsaved" id="unsaved" hidden></span>
   <span class="muted" id="source"></span>
+  <span class="badge" id="hint" hidden></span>
   <span class="muted" id="updated" style="margin-left:auto"></span>
 </header>
 <main>
@@ -94,14 +95,14 @@ iframe { width: 100%; height: calc(100vh - 260px); min-height: 480px; border: 0;
       unsaved: "未保存の変更あり", connected: "接続中", disconnected: "未接続", updated: "最終更新 ",
       severity: "重要度", rule: "ルール", target: "対象", message: "内容", none: "検出はありません 🎉",
       waiting: "ワークブックを待っています…", isnew: "新規", initial: "監視開始", resolvedL: "解消: ",
-      newL: "新規の検出: ", noevents: "まだ変更はありません", studio: "Tableau Studio", file: "保存済みファイル",
+      newL: "新規の検出: ", noevents: "まだ変更はありません", studio: "Tableau Studio", file: "保存済みファイル", fileHint: "保存すると更新されます (保存前の編集は Tableau Studio 接続時のみ反映)",
       kinds: { added: "追加", removed: "削除", changed: "変更" },
       cats: { calc: "計算フィールド", parameter: "パラメーター", worksheet: "ワークシート", dashboard: "ダッシュボード", datasource: "データソース", action: "アクション" } },
     en: { error: "Errors", warning: "Warnings", info: "Info", findings: "Findings", history: "Changes", spec: "Documentation",
       unsaved: "Unsaved changes", connected: "Connected", disconnected: "Disconnected", updated: "Updated ",
       severity: "Severity", rule: "Rule", target: "Target", message: "Message", none: "No findings 🎉",
       waiting: "Waiting for the workbook…", isnew: "New", initial: "Started watching", resolvedL: "Resolved: ",
-      newL: "New findings: ", noevents: "No changes yet", studio: "Tableau Studio", file: "Saved file",
+      newL: "New findings: ", noevents: "No changes yet", studio: "Tableau Studio", file: "Saved file", fileHint: "Updates when you save (unsaved edits need Tableau Studio)",
       kinds: { added: "Added", removed: "Removed", changed: "Changed" },
       cats: { calc: "Calculated field", parameter: "Parameter", worksheet: "Worksheet", dashboard: "Dashboard", datasource: "Data source", action: "Action" } }
   };
@@ -178,6 +179,8 @@ iframe { width: 100%; height: calc(100vh - 260px); min-height: 480px; border: 0;
     var unsaved = document.getElementById("unsaved");
     unsaved.hidden = !st.unsaved; unsaved.textContent = L.unsaved;
     document.getElementById("source").textContent = (L[st.source] || st.source || "") + " · " + (st.connected ? L.connected : L.disconnected);
+    var hint = document.getElementById("hint");
+    hint.hidden = st.source !== "file"; hint.textContent = L.fileHint;
     document.getElementById("updated").textContent = state.updated_at ? L.updated + state.updated_at.replace("T", " ") : "";
     ["error", "warning", "info"].forEach(function (s) { document.getElementById("n-" + s).textContent = state.summary[s] || 0; });
     var banner = document.getElementById("banner");

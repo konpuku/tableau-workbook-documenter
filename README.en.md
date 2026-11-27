@@ -124,6 +124,10 @@ If it still fails (exit code `4`), `.pyc` or `.dll` files may also be encrypted.
 findings up to date on a local dashboard at http://127.0.0.1:8765/. It follows edits made
 by people and by the Tableau Agent alike. Turn on **Help > Settings & Performance >
 External Client API Access** and restart Tableau first, then double-click `live_ci.bat`.
+If Tableau Studio is not reachable (no Tableau Plus license, or the API is off), `live_ci.bat`
+asks you to choose a saved workbook and watches that file instead, updating each time you
+save. You can also drop a `.twbx` / `.twb` on `live_ci.bat`. `python -m twbdoc studio-status`
+reports whether Tableau Studio is reachable (exit code 0, or 6 if not).
 
 The dashboard shows findings (with a "New" badge for ones the last edit introduced),
 a change history (fields, sheets and dashboards added, removed or changed; findings

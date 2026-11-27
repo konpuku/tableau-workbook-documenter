@@ -4,6 +4,7 @@
     python -m twbdoc <file.twbx> [<file2.twb> ...] [--output <dir>] [--lang ja|en]
     python -m twbdoc check <file.twbx | --studio> [--format json] [--fail-on warning]
     python -m twbdoc watch [<file.twbx>] [--port 8765] [--open]
+    python -m twbdoc studio-status
 
 各入力ファイルと同じフォルダ (または --output 指定先) に
 「<ファイル名>_Documentation_yyyymmdd」フォルダを作成し、その中に

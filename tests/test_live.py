@@ -290,3 +290,36 @@ class TestCheckStudio:
     def test_Studio_が無ければ終了コード_6(self, tmp_path: Path, monkeypatch) -> None:
         monkeypatch.setenv("TABLEAU_EXTERNAL_API_DISCOVERY_DIR", str(tmp_path))
         assert main(["check", "--studio"]) == EXIT_STUDIO_UNAVAILABLE
+
+
+class TestStudioStatus:
+    def test_接続できれば_available_true_と終了コード_0(
+        self, studio: FakeStudio, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        studio.write_discovery(tmp_path)
+        studio.unsaved = True
+        monkeypatch.setenv("TABLEAU_EXTERNAL_API_DISCOVERY_DIR", str(tmp_path))
+        assert main(["studio-status"]) == 0
+        status = json.loads(capsys.readouterr().out)
+        assert status["available"] is True
+        assert status["workbook"] == "Book"
+        assert status["unsaved"] is True
+
+    def test_発見ファイルが無ければ終了コード_6(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        monkeypatch.setenv("TABLEAU_EXTERNAL_API_DISCOVERY_DIR", str(tmp_path))
+        assert main(["studio-status", "--lang", "en"]) == EXIT_STUDIO_UNAVAILABLE
+        status = json.loads(capsys.readouterr().out)
+        assert status["available"] is False
+        assert "Tableau Plus" in status["reason"]
+        assert status["detail"]
+
+    def test_応答しない_Studio_は利用不可(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        (tmp_path / "1.json").write_text(json.dumps({
+            "baseUrl": "http://127.0.0.1:1", "token": "x", "pid": 1}), encoding="utf-8")
+        monkeypatch.setenv("TABLEAU_EXTERNAL_API_DISCOVERY_DIR", str(tmp_path))
+        assert main(["studio-status"]) == EXIT_STUDIO_UNAVAILABLE
+        assert json.loads(capsys.readouterr().out)["available"] is False

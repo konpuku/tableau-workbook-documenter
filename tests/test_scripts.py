@@ -171,3 +171,52 @@ class TestEncryptionGuidance:
         )
         assert "import encodings" in content
         assert "exit 4" in content
+
+
+class TestLiveCiLauncher:
+    """live_ci.ps1: Studio が使えなければ保存済みファイルの監視に切り替える。"""
+
+    def _script(self) -> str:
+        return (ROOT_DIR / "app" / "live_ci.ps1").read_text(encoding="utf-8-sig")
+
+    def test_引数なしは_Studio_の状態を確かめる(self) -> None:
+        script = self._script()
+        assert "studio-status" in script
+        assert "$probe.Available" in script
+
+    def test_Studio_が無ければファイル選択に切り替える(self) -> None:
+        script = self._script()
+        assert "System.Windows.Forms.OpenFileDialog" in script
+        assert "*.twbx;*.twb" in script
+        # キャンセル時は使い方を出して終了する
+        assert "exit 2" in script
+
+    def test_オプションだけでも_Studio_の状態を確かめる(self) -> None:
+        # ワークブックの有無で判定する (引数の有無ではない)
+        assert "$hasWorkbook" in self._script()
+
+    def test_引数を高度なスクリプトとして受けない(self) -> None:
+        """[Parameter()] があると --out が -OutVariable と解釈されてエラーになる。"""
+        script = self._script()
+        assert "[Parameter(" not in script
+        assert "$WatchArgs = @($args)" in script
+
+    def test_ファイル選択ダイアログを最前面に出す(self) -> None:
+        script = self._script()
+        assert "$owner.TopMost = $true" in script
+        assert "$owner.Show()" in script
+
+    def test_Python_の出力を_UTF8_で受け取る(self) -> None:
+        assert "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8" in self._script()
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows PowerShell が必要")
+    def test_構文エラーがない(self) -> None:
+        command = (
+            "$e=$null; $null=[System.Management.Automation.Language.Parser]::ParseFile("
+            f"'{ROOT_DIR / 'app' / 'live_ci.ps1'}',[ref]$null,[ref]$e); $e.Count"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", command],
+            capture_output=True, text=True, timeout=60,
+        )
+        assert result.stdout.strip() == "0", result.stdout + result.stderr
