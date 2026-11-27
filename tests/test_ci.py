@@ -16,6 +16,7 @@ from twbdoc.ci.diff import (
     diff_findings,
     diff_snapshots,
     labels_for,
+    renames_from_ids,
     snapshot,
 )
 from twbdoc.ci.report import to_markdown, to_report_dict
@@ -167,6 +168,21 @@ class TestRules:
         assert unused[0].category == "Unused calculated field"
 
 
+class TestStableIds:
+    def test_コメント記載率は計算フィールドが増えても同じ_ID(self) -> None:
+        one = run_checks(_workbook(calculated_fields=(_calc("[C1]", "1"),)))
+        two = run_checks(
+            _workbook(calculated_fields=(_calc("[C1]", "1"), _calc("[C2]", "2")))
+        )
+        ids_one = {f.id for f in one if f.rule == "comment-coverage"}
+        ids_two = {f.id for f in two if f.rule == "comment-coverage"}
+        assert ids_one and ids_one == ids_two
+        coverage = next(f for f in two if f.rule == "comment-coverage")
+        assert "0/2" in coverage.message
+        new, resolved = diff_findings(one, two)
+        assert all(f.rule != "comment-coverage" for f in (*new, *resolved))
+
+
 class TestConfig:
     def test_ルールの無効化_重要度上書き_除外(self, minimal_root, tmp_path: Path) -> None:
         workbook = parse_workbook(minimal_root, source_file="x.twb")
@@ -237,6 +253,35 @@ class TestDiff:
         assert (ADDED, "dashboard", "d") in summary
         sheet_change = next(c for c in changes if c.category == "worksheet")
         assert "[C1]" in sheet_change.detail
+
+    def test_ID_から分かるシート名の変更は変更として扱う(self) -> None:
+        before = _workbook(worksheets=(Worksheet(name="Sheet 1", used_columns=("[Sales]",)),))
+        after = _workbook(worksheets=(Worksheet(name="売上", used_columns=("[Sales]", "[Profit]")),))
+        renames = renames_from_ids({"w1": "Sheet 1"}, {"w1": "売上"})
+        assert renames == {"Sheet 1": "売上"}
+        changes = diff_snapshots(
+            snapshot(before), snapshot(after), renames={"worksheet": renames}
+        )
+        assert [(c.kind, c.target) for c in changes] == [(CHANGED, "売上")]
+        assert "Sheet 1 → 売上" in changes[0].detail
+        assert "[Profit]" in changes[0].detail
+
+    def test_ID_が無くても属性が同じ1組は名前の変更とみなす(self) -> None:
+        before = _workbook(worksheets=(Worksheet(name="Sheet 1"), Worksheet(name="b")))
+        after = _workbook(worksheets=(Worksheet(name="売上"), Worksheet(name="b")))
+        changes = diff_snapshots(snapshot(before), snapshot(after))
+        assert [(c.kind, c.category, c.target) for c in changes] == [
+            (CHANGED, "worksheet", "売上")
+        ]
+
+    def test_属性が違えば削除と追加のまま(self) -> None:
+        before = _workbook(worksheets=(Worksheet(name="a", used_columns=("[Sales]",)),))
+        after = _workbook(worksheets=(Worksheet(name="b"),))
+        kinds = {c.kind for c in diff_snapshots(snapshot(before), snapshot(after))}
+        assert kinds == {ADDED, REMOVED}
+
+    def test_初回は名前の変更なし(self) -> None:
+        assert renames_from_ids(None, {"w1": "a"}) == {}
 
     def test_検出の新規と解消(self) -> None:
         before = run_checks(_workbook(calculated_fields=(_calc("[C1]", "1"),)))

@@ -30,6 +30,8 @@ class Snapshot:
     unsaved: bool = False
     diagnostics: dict | None = None
     sheet_names: dict[str, str] = field(default_factory=dict)
+    # ワークシート・ダッシュボード・ストーリーの ID → 名前 (名前の変更の検知用)
+    sheet_ids: dict[str, str] = field(default_factory=dict)
     fetched_at: datetime = field(default_factory=datetime.now)
 
     @property
@@ -129,6 +131,7 @@ class StudioSource:
                 s.get("id", ""): s.get("name", "")
                 for s in info.get("worksheets", []) or []
             },
+            sheet_ids={sheet_id: name for sheet_id, name in sheets if sheet_id},
         )
 
     def status(self) -> dict:

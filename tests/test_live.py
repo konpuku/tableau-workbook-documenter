@@ -38,6 +38,7 @@ class FakeStudio:
         self.async_document = async_document
         self.document_calls = 0
         self.diagnostics = {"worksheets": []}
+        self.worksheets = [{"id": "w1", "name": "売上推移"}]
         studio = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -52,7 +53,7 @@ class FakeStudio:
                 if self.path == "/v0/workbook":
                     return self._json({
                         "title": "Book", "location": None, "unsavedChanges": studio.unsaved,
-                        "worksheets": [{"id": "w1", "name": "売上推移"}],
+                        "worksheets": studio.worksheets,
                         "dashboards": [], "storyboards": [],
                     })
                 if self.path == "/v0/workbook/document":
@@ -198,6 +199,21 @@ class TestRunner:
         report = json.loads((out / "findings.json").read_text(encoding="utf-8"))
         assert report["source"] == "studio"
         assert len((out / "history.jsonl").read_text(encoding="utf-8").splitlines()) == 2
+
+    def test_シート名の変更はシート_ID_で検知する(self, studio: FakeStudio) -> None:
+        studio.worksheets = [{"id": "w1", "name": "売上推移"}, {"id": "w2", "name": "単独シート"}]
+        source = StudioSource(client=StudioClient(studio.instance()), doc_interval=0)
+        runner = LiveRunner(source, None)
+        runner.tick()
+        # 名前を変え、同時に中身も変える (属性が違っても ID で名前の変更と分かる)
+        studio.worksheets = [{"id": "w1", "name": "売上推移"}, {"id": "w2", "name": "地域別"}]
+        assert "<worksheet name='単独シート'>" in studio.xml
+        studio.xml = studio.xml.replace("<worksheet name='単独シート'>", "<worksheet name='地域別'>")
+        assert runner.tick()
+        changes = runner.snapshot_state()["events"][0]["changes"]
+        sheet_changes = [c for c in changes if c["category"] == "worksheet"]
+        assert [(c["kind"], c["target"]) for c in sheet_changes] == [("changed", "地域別")]
+        assert "単独シート → 地域別" in sheet_changes[0]["detail"]
 
     def test_Studio_停止中はエラー状態を配信する(self, tmp_path: Path) -> None:
         source = StudioSource(discovery_dir=tmp_path)
