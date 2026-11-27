@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import webbrowser
 from pathlib import Path
@@ -29,14 +30,59 @@ EXIT_INPUT_ERROR = 2
 EXIT_CHECK_FAILED = 5
 EXIT_STUDIO_UNAVAILABLE = 6
 
-SUBCOMMANDS = ("check", "watch")
+SUBCOMMANDS = ("check", "watch", "studio-status")
 
 
 def run_subcommand(argv: list[str]) -> int:
     command, rest = argv[0], argv[1:]
     if command == "check":
         return check_main(rest)
+    if command == "studio-status":
+        return studio_status_main(rest)
     return watch_main(rest)
+
+
+# --- studio-status -----------------------------------------------------------
+
+
+def studio_status_main(argv: list[str]) -> int:
+    """Tableau Studio に接続できるかを JSON で返す (接続できれば 0、できなければ 6)。
+
+    live_ci.ps1 が Studio 監視とファイル監視のどちらで起動するかの判定に使う。
+    """
+    from .live.studio import StudioError, connect
+
+    parser = argparse.ArgumentParser(
+        prog="twbdoc studio-status",
+        description="Report whether Tableau Studio's External Client API is "
+        "reachable, as JSON (exit 0 if reachable, 6 if not).",
+    )
+    parser.add_argument("--workbook", help="pick the Tableau instance by workbook title/path")
+    parser.add_argument("--lang", choices=LANGUAGE_CHOICES, default="auto")
+    args = parser.parse_args(argv)
+    t = get_translator(args.lang)
+    status: dict = {"available": False, "workbook": None, "location": None, "unsaved": None, "reason": ""}
+    try:
+        client = connect(workbook=args.workbook)
+        info = client.workbook()
+    except StudioError as error:
+        status["reason"] = t(
+            "Tableau Studio に接続できません (起動していないか、"
+            "External Client API が無効、または Tableau Plus のライセンスがない可能性があります)",
+            "Cannot connect to Tableau Studio (it is not running, the External "
+            "Client API is off, or there is no Tableau Plus license)",
+        )
+        status["detail"] = str(error)
+        print(json.dumps(status, ensure_ascii=False))
+        return EXIT_STUDIO_UNAVAILABLE
+    status.update(
+        available=True,
+        workbook=info.get("title"),
+        location=info.get("location"),
+        unsaved=bool(info.get("unsavedChanges")),
+    )
+    print(json.dumps(status, ensure_ascii=False))
+    return EXIT_OK
 
 
 # --- check -----------------------------------------------------------------
@@ -233,6 +279,18 @@ def watch_main(argv: list[str]) -> int:
             error = state["error"] or state["status"].get("error")
             if error and error != last_error:
                 print(f"{t('[待機]', '[Waiting]')} {error}", file=sys.stderr)
+                if not args.file:
+                    print(
+                        t(
+                            "  保存済みのワークブックを監視する場合: "
+                            "python -m twbdoc watch <ファイル.twbx> "
+                            "(または live_ci.bat にファイルをドロップ)",
+                            "  To watch a saved workbook instead: "
+                            "python -m twbdoc watch <file.twbx> "
+                            "(or drop the file on live_ci.bat)",
+                        ),
+                        file=sys.stderr,
+                    )
             last_error = error
             runner.wait(runner.interval)
     except KeyboardInterrupt:
