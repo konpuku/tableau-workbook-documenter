@@ -146,8 +146,17 @@ Exit codes: 0 pass, 1 parse error, 2 input error, 5 findings at or above `--fail
 6 Tableau Studio not reachable. Rules: `invalid-field`, `broken-reference`, `unused-calc`,
 `unused-parameter`, `duplicate-formula`, `extract-row-limit`, `orphan-worksheet`,
 `unused-datasource`, `deep-dependency`, `comment-coverage`, `default-sheet-name`,
-`placeholder-calc-name`, `uncommented-complex-calc`. Tune them with a `.twbdoc.json`
-(`rules`, `ignore`, `fail_on`) next to the workbook.
+`placeholder-calc-name`, `uncommented-complex-calc`, `inconsistent-font-size`,
+`inconsistent-font-family`. Tune them with a `.twbdoc.json` (`rules`, `ignore`, `fail_on`)
+next to the workbook.
+
+The font rules compare sheet titles, tooltips, axis titles and similar text against the
+workbook's most common size, and flag font names that differ only in case or too many font
+families. Set team standards in the `style` section of `.twbdoc.json`:
+`font_families` (allowed fonts), `font_sizes` (pt per role: `worksheet-title`,
+`dashboard-title`, `tooltip`, `caption`, or `format:<element>` such as `format:axis-title`)
+and `max_font_families` (default 3; weights such as Tableau Book / Medium count as one).
+With a standard set, differences become warnings instead of info.
 
 Double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
 The skill runs with the Python found at install time (the bundled Python first), so it

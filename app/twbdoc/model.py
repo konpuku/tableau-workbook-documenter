@@ -37,6 +37,26 @@ class StyleRule:
 
 
 @dataclass(frozen=True)
+class TextStyle:
+    """フォントの設定 1 か所 (書式の一貫性チェック用)。
+
+    source='text' はテキストの装飾 (<formatted-text>/<run>) 1 ブロック、
+    source='format' は書式ルール (<style-rule>/<format>) 1 つ。
+    role はシートタイトル・ツールヒント等の役割 (TEXT_ROLE_* / 書式ルールの element)。
+    owner_kind は workbook / worksheet / dashboard、owner はその名前。
+    font_size はそのブロックの基本サイズ (pt、未指定なら None)。
+    font_names はそのブロックで使われているフォント名 (出現順・重複なし)。
+    """
+
+    role: str
+    owner_kind: str
+    owner: str
+    source: str = "text"
+    font_size: float | None = None
+    font_names: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Alias:
     """メンバー別名 (<alias key='元値' value='表示名'/>)。"""
 
@@ -352,3 +372,4 @@ class Workbook:
     style_rules: tuple[StyleRule, ...] = ()
     shared_filters: tuple[WorksheetFilter, ...] = ()
     actions: tuple[DashboardAction, ...] = ()
+    text_styles: tuple[TextStyle, ...] = ()

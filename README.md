@@ -174,6 +174,8 @@ python -m twbdoc check *.twbx --fail-on warning          # 警告以上で終了
 | `default-sheet-name` | 情報 | 「シート 1」など既定名のまま |
 | `placeholder-calc-name` | 情報 | 「(コピー)」「計算1」など仮の名前の計算フィールド |
 | `uncommented-complex-calc` | 情報 | コメントのない長い計算式 |
+| `inconsistent-font-size` | 情報 (基準を決めた場合は警告) | シートのタイトル・ツールヒント・軸タイトル等で、ワークブックの多数派 (または基準) と違うフォントサイズ |
+| `inconsistent-font-family` | 情報 (許可リストを決めた場合は警告) | フォント名の大文字・小文字の表記ゆれ、使っているフォントの種類が多すぎる、許可リストにないフォント |
 
 ワークブックと同じフォルダ (または親フォルダ) の `.twbdoc.json` でルールを調整できます。
 
@@ -181,9 +183,26 @@ python -m twbdoc check *.twbx --fail-on warning          # 警告以上で終了
 {
   "rules": { "orphan-worksheet": "off", "default-sheet-name": "warning" },
   "ignore": ["unused-calc:3f2a9c1b0d", { "rule": "unused-calc", "target": "検証用フラグ" }],
-  "fail_on": "warning"
+  "fail_on": "warning",
+  "style": {
+    "font_families": ["Tableau Book", "Meiryo UI"],
+    "font_sizes": { "worksheet-title": 14, "tooltip": 10, "format:axis-title": 9 },
+    "max_font_families": 3
+  }
 }
 ```
+
+`style` はフォントの基準です。決めていなければ、ワークブック内の多数派を基準にばらつきを指摘します。
+
+- `font_families`: 使ってよいフォント。太さ違い (Tableau Book / Tableau Medium 等) も 1 つずつ書きます。
+- `font_sizes`: 役割ごとのサイズ (pt)。役割は `worksheet-title` (シートのタイトル)、`dashboard-title`、
+  `tooltip`、`caption`、`format:worksheet` / `format:title` / `format:axis-title` / `format:header` /
+  `format:legend-title` / `format:tooltip` / `format:field-labels` / `format:quick-filter-title` (書式設定)。
+- `max_font_families`: 許可リストが無いときに許すフォントの種類 (既定 3、太さ違いは同じ種類として数える)。
+
+タイトルは見出し (1 行目) のサイズで、ツールヒント等は最も多くの文字に使われているサイズで比べるため、
+副題や強調のためにサイズを変えた部分は指摘しません。ダッシュボードのテキストやマークのラベルは
+意図してサイズを変えることが多いため、`font_sizes` で基準を決めない限り対象外です。
 
 ### Tableau Agent スキル (検出 → 修正提案 → 承認後に修正)
 

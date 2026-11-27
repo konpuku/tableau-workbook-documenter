@@ -1,6 +1,6 @@
 ---
 name: twbdoc-ci
-description: Run twbdoc CI checks on the workbook open in Tableau Studio (unused calculated fields and parameters, unresolved references, invalid fields on sheets, duplicate formulas, default sheet names, placeholder calc names, uncommented complex formulas, extract row limits). Use after editing a workbook, when the user asks to "check", "lint", "CI", "review" or "clean up" the workbook, or before saving or publishing. Explains each finding, proposes a fix, and applies it only after the user approves.
+description: Run twbdoc CI checks on the workbook open in Tableau Studio (unused calculated fields and parameters, unresolved references, invalid fields on sheets, duplicate formulas, default sheet names, placeholder calc names, uncommented complex formulas, extract row limits, inconsistent font sizes and fonts). Use after editing a workbook, when the user asks to "check", "lint", "CI", "review" or "clean up" the workbook, or before saving or publishing. Explains each finding, proposes a fix, and applies it only after the user approves.
 ---
 
 # twbdoc CI for the open workbook
@@ -57,6 +57,8 @@ gone (its `id` no longer appears).
 | `uncommented-complex-calc` | Draft a `//` comment that explains the intent, show it, and add it with `author-calc` (validate with `validate-calculated-field` first). |
 | `orphan-worksheet` | Ask whether it is a scratch sheet (hide or delete it with `delete-sheet`) or should be placed on a dashboard. |
 | `extract-row-limit` | Ask the user to remove the row limit in Edit Extract. |
+| `inconsistent-font-size` | The message names the sheet, the role (title, tooltip, axis title…) and the size to match. Confirm the difference is not intended (a KPI title may be bigger on purpose), then set that sheet's size with `format-worksheets`. For many sheets, propose the change for all of them at once and apply after one approval. |
+| `inconsistent-font-family` | Propose one spelling or one allowed font and list the sheets that change; apply with `format-worksheets` after approval. |
 | `deep-dependency`, `comment-coverage`, `unused-datasource` | Informational: explain and suggest, do not change anything unless asked. |
 
 Rules:
