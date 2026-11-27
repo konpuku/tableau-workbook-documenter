@@ -158,6 +158,16 @@ families. Set team standards in the `style` section of `.twbdoc.json`:
 and `max_font_families` (default 3; weights such as Tableau Book / Medium count as one).
 With a standard set, differences become warnings instead of info.
 
+Naming rules go in the `naming` section: a regular expression and a description per kind
+(`calc`, `lod-calc`, `table-calc`, `boolean-calc`, `parameter`, `worksheet`, `dashboard`).
+LOD, table and boolean calculations fall back to the `calc` rule. `"preset": "prefix"`
+turns on the common `c_` / `lod_` / `tc_` / `p_` prefixes, and rules you write override it.
+`naming-convention` flags names that break the rule; `naming-kind-mismatch` flags names
+that follow another kind's rule (for example `lod_` on a formula that is no longer an LOD
+expression); `naming-whitespace` flags leading, trailing, repeated or full-width spaces
+without any configuration. Renaming a calculated field does not break formulas, because
+they refer to fields by internal name.
+
 Double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
 The skill runs with the Python found at install time (the bundled Python first), so it
 works from the distributed zip on PCs without Python. After

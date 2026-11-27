@@ -22,6 +22,7 @@ ignore は Finding の安定 ID、または rule と target の組で指定す�
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Iterable
@@ -29,6 +30,7 @@ from typing import Iterable
 from ..errors import InvalidFileError
 from ..i18n import JA, Translator
 from .rules import SEVERITY_ORDER, Finding
+from .naming_rules import KIND_LABELS, PRESETS, NamingConfig, NamingRule
 from .style_rules import FORMAT_PREFIX, ROLE_LABELS, StyleConfig
 
 CONFIG_FILE_NAME = ".twbdoc.json"
@@ -43,6 +45,7 @@ class CheckConfig:
     ignore_pairs: frozenset[tuple[str, str]] = frozenset()
     fail_on: str = "error"
     style: StyleConfig = field(default_factory=StyleConfig)
+    naming: NamingConfig = field(default_factory=NamingConfig)
 
     def apply(self, findings: Iterable[Finding]) -> list[Finding]:
         result: list[Finding] = []
@@ -126,7 +129,61 @@ def load_config(path: Path | None, t: Translator = JA) -> CheckConfig:
         ignore_pairs=frozenset(ignore_pairs),
         fail_on=fail_on,
         style=_load_style(data.get("style"), t),
+        naming=_load_naming(data.get("naming"), t),
     )
+
+
+def _load_naming(data: object, t: Translator) -> NamingConfig:
+    """"naming": {"preset": "prefix", "<種類>": {"pattern": 正規表現, "description": 説明} | 正規表現}"""
+    if data is None:
+        return NamingConfig()
+    if not isinstance(data, dict):
+        raise InvalidFileError(t("naming の形式が不正です", "Invalid naming section"))
+    rules: dict[str, NamingRule] = {}
+    preset = data.get("preset")
+    if preset is not None:
+        if preset not in PRESETS:
+            raise InvalidFileError(
+                t(
+                    f"naming.preset が不正です: {preset} (使えるもの: {', '.join(PRESETS)})",
+                    f"Unknown naming.preset: {preset} (available: {', '.join(PRESETS)})",
+                )
+            )
+        for kind, (pattern, description) in PRESETS[preset].items():
+            rules[kind] = NamingRule(re.compile(pattern), t(*description))
+    for kind, value in data.items():
+        if kind == "preset":
+            continue
+        if kind not in KIND_LABELS:
+            raise InvalidFileError(
+                t(
+                    f"naming の種類が不正です: {kind} (使える種類: {', '.join(KIND_LABELS)})",
+                    f"Unknown kind in naming: {kind} (valid kinds: {', '.join(KIND_LABELS)})",
+                )
+            )
+        if isinstance(value, str):
+            pattern, description = value, ""
+        elif isinstance(value, dict) and isinstance(value.get("pattern"), str):
+            pattern, description = value["pattern"], str(value.get("description", ""))
+        else:
+            raise InvalidFileError(
+                t(
+                    f"naming.{kind} は正規表現の文字列か "
+                    '{"pattern": ..., "description": ...} にしてください',
+                    f"naming.{kind} must be a regular expression or "
+                    '{"pattern": ..., "description": ...}',
+                )
+            )
+        try:
+            rules[kind] = NamingRule(re.compile(pattern), description)
+        except re.error as error:
+            raise InvalidFileError(
+                t(
+                    f"naming.{kind} の正規表現が不正です: {pattern} ({error})",
+                    f"Invalid regular expression in naming.{kind}: {pattern} ({error})",
+                )
+            ) from error
+    return NamingConfig(rules=rules)
 
 
 def _load_style(data: object, t: Translator) -> StyleConfig:

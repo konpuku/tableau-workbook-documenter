@@ -58,6 +58,8 @@ gone (its `id` no longer appears).
 | `orphan-worksheet` | Ask whether it is a scratch sheet (hide or delete it with `delete-sheet`) or should be placed on a dashboard. |
 | `extract-row-limit` | Ask the user to remove the row limit in Edit Extract. |
 | `inconsistent-font-size` | The message names the sheet, the role (title, tooltip, axis title…) and the size to match. Confirm the difference is not intended (a KPI title may be bigger on purpose), then set that sheet's size with `format-worksheets`. For many sheets, propose the change for all of them at once and apply after one approval. |
+| `naming-convention`, `naming-kind-mismatch` | The message quotes the team rule. Propose a new name that follows it (for a mismatch, say which part of the name no longer matches the formula), then rename with `author-calc` or `rename-sheet` after approval. Renaming a calculated field does not break formulas that use it. Propose several renames together for one approval when there are many. |
+| `naming-whitespace` | Propose the name without the extra spaces and rename after approval. |
 | `inconsistent-font-family` | Propose one spelling or one allowed font and list the sheets that change; apply with `format-worksheets` after approval. |
 | `deep-dependency`, `comment-coverage`, `unused-datasource` | Informational: explain and suggest, do not change anything unless asked. |
 
