@@ -11,18 +11,21 @@ workbook without the user's explicit approval.
 
 ## 1. Run the check
 
-Run this script (Python 3, standard library only). It reads the open workbook
-through the Tableau External Client API and prints a JSON report:
+Run this command file. It starts twbdoc with the Python that was found when the
+skill was installed (often the Python bundled with twbdoc, so do not call
+`python` yourself: it may not be on PATH). It reads the open workbook through the
+Tableau External Client API and prints a JSON report:
 
 ```
-python "<this skill folder>/scripts/twbdoc_ci.py"
+"<this skill folder>\scripts\run_ci.cmd"
 ```
 
 - Exit code 0 or 5 means the check ran (5 = there are errors). Read the JSON on stdout.
 - Exit code 6 means the External Client API is not reachable: ask the user to turn on
   Help > Settings & Performance > External Client API Access and restart Tableau.
-- Exit code 3 means twbdoc was not found: ask the user to rerun
-  `app\install_skill.ps1` from the twbdoc folder.
+- Exit code 3, or `run_ci.cmd` missing or failing to start Python, means the skill
+  needs reinstalling: ask the user to double-click `install_skill.bat` in the twbdoc
+  folder again.
 
 The report has `summary` (error / warning / info counts) and `findings`. Each
 finding has `id`, `rule`, `severity`, `target`, `message`, `fix_hint` and
