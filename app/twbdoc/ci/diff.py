@@ -90,20 +90,33 @@ def diff_snapshots(
     after: dict[str, dict[str, dict]],
     labels: dict[str, str] | None = None,
     t: Translator = JA,
+    renames: dict[str, dict[str, str]] | None = None,
 ) -> tuple[Change, ...]:
     """スナップショット間の差分。before が None (初回) なら空を返す。
 
     labels は内部名 → 表示名 (計算フィールドの caption など)。
+    renames はカテゴリ → {旧名: 新名}。Tableau Studio のシート ID から分かる
+    名前の変更を渡すと、削除 + 追加ではなく「変更 (名前を変更)」として扱う。
     """
     if before is None:
         return ()
     labels = labels or {}
+    renames = renames or {}
     changes: list[Change] = []
     for category, items in after.items():
         previous = before.get(category, {})
-        for name in items.keys() - previous.keys():
+        renamed = _detect_renames(category, previous, items, renames.get(category, {}))
+        old_names = set(renamed)
+        new_names = set(renamed.values())
+        for old, new in sorted(renamed.items()):
+            parts = [t("名前を変更: ", "renamed: ") + f"{labels.get(old, old)} → {labels.get(new, new)}"]
+            if previous[old] != items[new]:
+                keys = [k for k in items[new] if items[new].get(k) != previous[old].get(k)]
+                parts.append(_describe(category, keys, previous[old], items[new], t))
+            changes.append(Change(CHANGED, category, labels.get(new, new), "; ".join(parts)))
+        for name in items.keys() - previous.keys() - new_names:
             changes.append(Change(ADDED, category, labels.get(name, name)))
-        for name in previous.keys() - items.keys():
+        for name in previous.keys() - items.keys() - old_names:
             changes.append(Change(REMOVED, category, labels.get(name, name)))
         for name in items.keys() & previous.keys():
             if items[name] == previous[name]:
@@ -123,6 +136,48 @@ def diff_snapshots(
             )
     changes.sort(key=lambda c: (c.category, c.kind, c.target))
     return tuple(changes)
+
+
+# 名前を ID 代わりに使っていて、名前を変えると別物に見えるカテゴリ
+_RENAMEABLE = frozenset({"worksheet", "dashboard"})
+
+
+def _detect_renames(
+    category: str,
+    previous: dict[str, dict],
+    items: dict[str, dict],
+    known: dict[str, str],
+) -> dict[str, str]:
+    """{旧名: 新名}。known (Studio のシート ID 由来) を優先し、
+    無ければ「属性が同一の削除と追加が 1 組だけ」のときに名前の変更とみなす。
+    """
+    removed = previous.keys() - items.keys()
+    added = items.keys() - previous.keys()
+    renamed = {
+        old: new for old, new in known.items() if old in removed and new in added
+    }
+    if category not in _RENAMEABLE:
+        return renamed
+    rest_removed = removed - set(renamed)
+    rest_added = added - set(renamed.values())
+    if len(rest_removed) == 1 and len(rest_added) == 1:
+        old, new = next(iter(rest_removed)), next(iter(rest_added))
+        if previous[old] == items[new]:
+            renamed[old] = new
+    return renamed
+
+
+def renames_from_ids(
+    before: dict[str, str] | None, after: dict[str, str]
+) -> dict[str, str]:
+    """シート ID → 名前 の対応 2 つから {旧名: 新名} を作る。"""
+    if not before:
+        return {}
+    return {
+        before[sheet_id]: name
+        for sheet_id, name in after.items()
+        if sheet_id in before and before[sheet_id] != name
+    }
 
 
 def _describe(

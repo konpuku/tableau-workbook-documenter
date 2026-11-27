@@ -11,7 +11,13 @@ from pathlib import Path
 from typing import Callable, Union
 
 from ..ci.config import CheckConfig
-from ..ci.diff import diff_findings, diff_snapshots, labels_for, snapshot
+from ..ci.diff import (
+    diff_findings,
+    diff_snapshots,
+    labels_for,
+    renames_from_ids,
+    snapshot,
+)
 from ..ci.report import to_json, to_report_dict
 from ..ci.rules import Finding, count_by_severity, run_checks, studio_invalid_fields
 from ..errors import TwbDocError
@@ -91,6 +97,7 @@ class LiveRunner:
         self._prev_snapshot: dict | None = None
         self._prev_findings: tuple[Finding, ...] | None = None
         self._last_out = ""
+        self._prev_sheet_ids: dict[str, str] | None = None
 
     # --- ループ ---------------------------------------------------------------
 
@@ -139,7 +146,14 @@ class LiveRunner:
         extra = studio_invalid_fields(snap.diagnostics, snap.sheet_names, t)
         findings = run_checks(workbook, t, extra, self.config)
         current = snapshot(workbook)
-        changes = diff_snapshots(self._prev_snapshot, current, labels_for(workbook), t)
+        sheet_renames = renames_from_ids(self._prev_sheet_ids, snap.sheet_ids)
+        changes = diff_snapshots(
+            self._prev_snapshot,
+            current,
+            labels_for(workbook),
+            t,
+            renames={"worksheet": sheet_renames, "dashboard": sheet_renames},
+        )
         new, resolved = diff_findings(self._prev_findings, findings)
         markdown = render(workbook, generated_at=snap.fetched_at, samples=None, t=t)
         html = render_html(
@@ -162,6 +176,7 @@ class LiveRunner:
         self._write_outputs(snap, markdown, html, report, event)
         self._prev_snapshot = current
         self._prev_findings = findings
+        self._prev_sheet_ids = snap.sheet_ids
         with self.changed:
             state = self.state
             state.workbook = snap.title

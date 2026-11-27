@@ -187,18 +187,20 @@ def _from_health(
     findings: list[Finding] = []
     for rule, check, hint, tools in _health_rules(t):
         for item in check(workbook, t):
+            target, message = item.target, item.message
+            if rule in _WORKBOOK_LEVEL_RULES:
+                # 対象が件数 ("1/3 件") だと編集のたびに ID が変わり、
+                # 同じ指摘が「新規」と「解消」を繰り返すため、対象名を固定する
+                target = t("計算フィールド全体", "All calculated fields")
+                message = f"{message} ({item.target})"
             findings.append(
-                _make(
-                    rule,
-                    item.severity,
-                    item.category,
-                    item.target,
-                    item.message,
-                    hint,
-                    tools,
-                )
+                _make(rule, item.severity, item.category, target, message, hint, tools)
             )
     return findings
+
+
+# ワークブック全体で 1 件だけ出るルール (対象名を固定して ID を安定させる)
+_WORKBOOK_LEVEL_RULES = frozenset({"comment-coverage"})
 
 
 # --- CI 向けの追加ルール ------------------------------------------------------
