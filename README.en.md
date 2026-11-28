@@ -147,7 +147,8 @@ Exit codes: 0 pass, 1 parse error, 2 input error, 5 findings at or above `--fail
 `unused-parameter`, `duplicate-formula`, `extract-row-limit`, `orphan-worksheet`,
 `unused-datasource`, `deep-dependency`, `comment-coverage`, `default-sheet-name`,
 `placeholder-calc-name`, `uncommented-complex-calc`, `inconsistent-font-size`,
-`inconsistent-font-family`. Tune them with a `.twbdoc.json` (`rules`, `ignore`, `fail_on`)
+`inconsistent-font-family`, `naming-convention`, `naming-kind-mismatch`, `naming-whitespace`,
+`magic-number`. Tune them with a `.twbdoc.json` (`rules`, `ignore`, `fail_on`)
 next to the workbook.
 
 The font rules compare sheet titles, tooltips, axis titles and similar text against the
@@ -167,6 +168,15 @@ that follow another kind's rule (for example `lod_` on a formula that is no long
 expression); `naming-whitespace` flags leading, trailing, repeated or full-width spaces
 without any configuration. Renaming a calculated field does not break formulas, because
 they refer to fields by internal name.
+
+`magic-number` flags numbers hard-coded in comparisons (`IF [Margin] > 0.1 THEN ...`), one
+finding per calculated field, and becomes a warning when the same number appears in two or
+more formulas. Hard-coded years also get a relative-date suggestion. Numbers that are not
+thresholds are skipped: `0`, `1`, `-1`, `100`, function arguments (the `SPLIT` token, `LEFT`
+length, `ROUND` digits, `DATEADD` amount…), multiplication and division (rounding and unit
+conversion), comparisons with `INDEX()` / `SIZE()` / `FIRST()` / `LAST()` or with a parameter (list
+choice codes such as `[Parameters].[Select] = 2`), and digits inside
+strings or comments. List other numbers to skip in `"magic_numbers": {"allow": [0.5, 12]}`.
 
 Double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
 The skill runs with the Python found at install time (the bundled Python first), so it

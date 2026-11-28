@@ -21,6 +21,7 @@ from ..health import HealthFinding
 from ..i18n import JA, Translator
 from ..model import CalculatedField, Workbook
 from .naming_rules import naming_conventions, naming_whitespace
+from .number_rules import magic_numbers
 from .style_rules import inconsistent_font_families, inconsistent_font_sizes
 
 SEVERITY_ERROR = "error"
@@ -475,6 +476,7 @@ RULE_IDS = (
     "naming-convention",
     "naming-kind-mismatch",
     "naming-whitespace",
+    "magic-number",
 )
 
 
@@ -495,6 +497,7 @@ def run_checks(
         findings.extend(style_rule(workbook, t, config.style))
     findings.extend(naming_conventions(workbook, t, config.naming))
     findings.extend(naming_whitespace(workbook, t))
+    findings.extend(magic_numbers(workbook, t, config.magic_numbers))
     applied = config.apply(findings)
     applied.sort(
         key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.rule, f.target)
