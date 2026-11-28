@@ -8,6 +8,15 @@ Tableau ワークブック (`.twbx` / `.twb`) を解析し、設計書 (HTML / M
 CLI ツール。企業の Windows 環境を想定し、**生成 AI・インターネット接続・外部ライブラリなしで動作**する
 (ツール本体は Python 標準ライブラリのみ)。日本語 / 英語出力に対応。
 
+配布は 2 つの版 (`app/build_distribution.ps1 -Edition`):
+
+- **単体版 (Standalone)**: 生成 AI を使わない外部ツール。設計書・CI チェック・Live CI。
+- **Agent 版 (Agent)**: 単体版 + Tableau Agent のスキル (`app/skills`, `install_skill.bat`)。
+  生成 AI は Tableau Agent 自身が担当し、twbdoc 本体は事実 (JSON) を渡すだけ。
+
+共通部分 (`app/twbdoc/`) は版で分岐させない。Agent 版だけのファイルを足したら、
+`build_distribution.ps1` の `$AgentOnlyPaths` と `release.yml` の確認に追加する。
+
 ## 開発コマンド
 
 ```bash
@@ -49,7 +58,7 @@ app/twbdoc/
 
 ## 守るべき規約
 
-- **標準ライブラリのみ**: `app/twbdoc/` に外部依存を追加しない。
+- **標準ライブラリのみ・生成 AI なし**: `app/twbdoc/` に外部依存や生成 AI の呼び出しを追加しない。
 - **用語は Tableau 公式ヘルプ表記**に統一 (日英)。文言は `i18n.py` に集約し、直書きしない。
 - **スクリプトのエンコーディング**: `.ps1` は UTF-8 **BOM 付き**、`.bat` は **BOM なし**。
   `tests/test_scripts.py` が検査する。

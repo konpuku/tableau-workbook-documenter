@@ -4,9 +4,25 @@
 
 Tableau ワークブック (.twbx / .twb) を解析し、設計書 (HTML / Markdown) を自動生成するツールです。
 
-- 完全にローカルで動作します。生成 AI・インターネット接続・追加ライブラリは一切不要です (Python 標準ライブラリのみ)
+- 完全にローカルで動作します。生成 AI・インターネット接続・追加ライブラリは一切不要です (Python 標準ライブラリのみ。
+  生成 AI を使うのは、下記の Agent 版で Tableau Agent と連携する部分だけです)
 - 企業の Windows 環境を想定し、bat / PowerShell / Python だけで動作します。Python 未導入の PC 向けの同梱配布にも対応しています
 - 日本語と英語に対応しています。実行環境の表示言語を自動判定して出力を切り替え、用語は Tableau 公式ヘルプの表記に統一しています
+
+## どちらの版を使うか
+
+配布用 zip は 2 種類あります。設計書・CI チェック・Live CI の本体は共通で、違いは Tableau Agent との連携の有無だけです。
+
+| | 単体版 (`standalone`) | Agent 版 (`agent`) |
+| --- | --- | --- |
+| 向いている人 | Tableau Plus のライセンスがない人を含む、すべての利用者 | Tableau Studio と Tableau Agent を使える人 (Tableau Plus の Creator) |
+| 生成 AI | 使わない (外部に何も送らない) | Tableau Agent の AI を使う (twbdoc 本体は使わない) |
+| 含まれるもの | `generate_doc.bat` (設計書)、`live_ci.bat` (Live CI) | 単体版 + `install_skill.bat` (Tableau Agent のスキル) |
+| Live CI | 保存したファイルを監視 (Tableau Studio があれば未保存の編集も) | 同左 |
+
+迷ったら単体版を使ってください。Agent 版では、スキルを使うときにワークブックの中身
+(計算式・フィールド名など) が Tableau Agent を通じて Tableau の生成 AI に渡ります。
+**社内で Tableau Agent の利用が認められているか確認してから使ってください。**
 
 ## 出力言語
 
@@ -71,13 +87,16 @@ python -m twbdoc book1.twbx book2.twb --output C:\docs  # 複数指定・出力�
 最も簡単な方法です。[Releases](https://github.com/konpuku/tableau-workbook-documenter/releases) から
 Python 同梱版の zip をダウンロードし、展開して配布するだけです。
 利用者側でのインストール・ダウンロード・管理者権限は一切不要です。
-zip には設計書生成 (`generate_doc.bat`) に加えて、Live CI (`live_ci.bat`) と
-Tableau Agent スキルのインストーラー (`install_skill.bat`) も入っています。
+zip には設計書生成 (`generate_doc.bat`) と Live CI (`live_ci.bat`) が入っています。
+Agent 版には、Tableau Agent スキルのインストーラー (`install_skill.bat`) も入っています
+(版の違いは「どちらの版を使うか」を参照)。
 
 | アセット | 内容 | サイズ目安 |
 | --- | --- | --- |
-| `...-with-python-hyperapi-win64.zip` | Python + tableauhyperapi 同梱 (.hyper のサンプル値取得対応) | 約 83MB |
-| `...-with-python-win64.zip` | Python のみ同梱 | 約 12MB |
+| `...-standalone-with-python-win64.zip` | 単体版。Python のみ同梱 | 約 12MB |
+| `...-standalone-with-python-hyperapi-win64.zip` | 単体版。Python + tableauhyperapi 同梱 (.hyper のサンプル値取得対応) | 約 83MB |
+| `...-agent-with-python-win64.zip` | Agent 版。Python のみ同梱 | 約 12MB |
+| `...-agent-with-python-hyperapi-win64.zip` | Agent 版。Python + tableauhyperapi 同梱 | 約 83MB |
 
 ### 方法 2: 管理者がセットアップして配布
 
@@ -91,8 +110,8 @@ cd twb_doc_generator\app
 ```
 
 セットアップ後は **ツールのフォルダごとコピーして配布**するだけです。
-配布用の zip を自分で作る場合は `.\build_distribution.ps1 [-WithHyperApi]` を実行すると
-`dist\` に配布用 zip が生成されます。
+配布用の zip を自分で作る場合は `.\build_distribution.ps1 [-Edition Standalone|Agent] [-WithHyperApi]`
+を実行すると `dist\` に配布用 zip が生成されます (`-Edition` の既定は単体版)。
 
 いずれの方法も再配布は合法です (Python は PSF License、tableauhyperapi は Apache-2.0)。
 
@@ -258,7 +277,7 @@ LOD 計算・表計算・ブール型は、規則を書かなければ `calc` �
 { "magic_numbers": { "allow": [0.5, 12] } }
 ```
 
-### Tableau Agent スキル (検出 → 修正提案 → 承認後に修正)
+### Tableau Agent スキル (検出 → 修正提案 → 承認後に修正) — Agent 版のみ
 
 `install_skill.bat` をダブルクリックすると、
 `ドキュメント\My Tableau Repository\Tableau Agent\skills\twbdoc-ci` にスキルが入ります。
