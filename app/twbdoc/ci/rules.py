@@ -20,6 +20,7 @@ from .. import health
 from ..health import HealthFinding
 from ..i18n import JA, Translator
 from ..model import CalculatedField, Workbook
+from .naming_rules import naming_conventions, naming_whitespace
 from .style_rules import inconsistent_font_families, inconsistent_font_sizes
 
 SEVERITY_ERROR = "error"
@@ -471,6 +472,9 @@ RULE_IDS = (
     "uncommented-complex-calc",
     "inconsistent-font-size",
     "inconsistent-font-family",
+    "naming-convention",
+    "naming-kind-mismatch",
+    "naming-whitespace",
 )
 
 
@@ -489,6 +493,8 @@ def run_checks(
         findings.extend(rule(workbook, t))
     for style_rule in (inconsistent_font_sizes, inconsistent_font_families):
         findings.extend(style_rule(workbook, t, config.style))
+    findings.extend(naming_conventions(workbook, t, config.naming))
+    findings.extend(naming_whitespace(workbook, t))
     applied = config.apply(findings)
     applied.sort(
         key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.rule, f.target)
