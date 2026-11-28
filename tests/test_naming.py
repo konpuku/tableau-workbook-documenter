@@ -84,6 +84,7 @@ class TestNamingConvention:
         assert finding.target == "利益率"
         assert "c_ で始める" in finding.message
         assert "references" in finding.fix_hint  # 名前を変えても参照は壊れない旨
+        assert finding.fix_tools == ("get-datasource-xml", "apply-datasource")
 
     def test_細かい種類は規則が無ければ計算フィールドの規則を使う(self, tmp_path: Path) -> None:
         config = _config(tmp_path, {"calc": "^c_"})

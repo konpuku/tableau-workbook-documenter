@@ -142,6 +142,28 @@ class TestRules:
         )
         assert "uncommented-complex-calc" not in _rules(run_checks(commented))
 
+    def test_既存の計算フィールドの修正に_author_calc_を案内しない(self) -> None:
+        # author-calc は新しい計算フィールドを作るツール。既存の修正は apply-datasource (#38)
+        long_formula = " + ".join(["SUM([Sales])"] * 12)
+        workbook = _workbook(
+            calculated_fields=(
+                _calc("[C1]", long_formula, caption="計算1"),
+                _calc("[C2]", "[存在しない] + 1", caption="参照切れ"),
+                _calc("[C3]", "SUM([Sales])", caption="重複A"),
+                _calc("[C4]", "SUM([Sales])", caption="重複B"),
+            ),
+        )
+        findings = run_checks(workbook)
+        edit_rules = {
+            "placeholder-calc-name", "uncommented-complex-calc",
+            "broken-reference", "duplicate-formula",
+        }
+        checked = [f for f in findings if f.rule in edit_rules]
+        assert {f.rule for f in checked} == edit_rules
+        for finding in checked:
+            assert "author-calc" not in finding.fix_tools, finding.rule
+            assert "apply-datasource" in finding.fix_tools, finding.rule
+
     def test_Studio_診断の無効フィールドはエラー(self) -> None:
         diagnostics = {
             "worksheets": [
