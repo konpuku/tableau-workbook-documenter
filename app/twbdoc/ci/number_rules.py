@@ -162,7 +162,7 @@ def _is_year(text: str, value: float) -> bool:
 def magic_numbers(
     workbook: Workbook, t: Translator, config: MagicNumberConfig
 ) -> list[Finding]:
-    from .rules import SEVERITY_INFO, SEVERITY_WARNING, _make
+    from .rules import EDIT_CALC_TOOLS, SEVERITY_INFO, SEVERITY_WARNING, _make
 
     per_calc: list[tuple[CalculatedField, dict[float, str]]] = []
     users: dict[float, set[str]] = {}
@@ -224,7 +224,8 @@ def magic_numbers(
                 name,
                 message,
                 hint,
-                ("author-parameter", "author-calc", "validate-calculated-field"),
+                # 新しいパラメーター / 名前付きの計算フィールドを作り、既存の式を書き換える
+                ("author-parameter", "author-calc", *EDIT_CALC_TOOLS),
             )
         )
     return findings

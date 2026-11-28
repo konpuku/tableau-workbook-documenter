@@ -46,21 +46,39 @@ For each fix, say exactly what will change and ask the user to approve it. Apply
 one approved fix at a time, then run the check again and confirm the finding is
 gone (its `id` no longer appears).
 
+### Changing an existing calculated field or parameter
+
+`author-calc` always **creates a new** calculated field (with a new internal
+name). Never use it to rename, comment or rewrite an existing field: the original
+stays unchanged and a duplicate appears. To change an existing field:
+
+1. `get-datasource-xml` for the data source that holds it (parameters are in the
+   `Parameters` data source).
+2. Find its `<column>` by the internal name or caption, and change only what was
+   approved: the `caption` attribute (rename), the `formula` of its
+   `<calculation>` (rewrite), or a `//` line at the top of the formula (comment).
+   Keep the internal `name` unchanged so that references keep working.
+3. Check a changed formula with `validate-calculated-field`.
+4. Apply the edited XML with `apply-datasource`, then run the check again.
+
+Use `author-calc` only to add a new calculated field, and `author-parameter` only
+to add a new parameter.
+
 | rule | how to fix |
 |---|---|
 | `invalid-field` (error) | Find the sheet and shelf in the message. Replace the field or remove it with `remove-field` / `refine-worksheet`. |
-| `broken-reference` | Use `search-workbook-fields` to find the intended field, check the new formula with `validate-calculated-field`, then update it with `author-calc`. |
+| `broken-reference` | Use `search-workbook-fields` to find the intended field, check the new formula with `validate-calculated-field`, then rewrite the formula as described in "Changing an existing calculated field". |
 | `unused-calc`, `unused-parameter` | The API cannot delete calculated fields or parameters. Confirm with `search-workbook-fields` that nothing uses it, then ask the user to delete it in the Data pane (right-click > Delete), or to keep it and add a comment explaining why. |
-| `duplicate-formula` | Propose keeping one field. Repoint references with `author-calc`, then ask the user to delete the others by hand. |
-| `default-sheet-name` | Suggest a descriptive name based on the sheet's content (`get-sheets`), and rename with `rename-sheet` after approval. |
-| `placeholder-calc-name` | Suggest a meaningful name from the formula and rename it with `author-calc`. |
-| `uncommented-complex-calc` | Draft a `//` comment that explains the intent, show it, and add it with `author-calc` (validate with `validate-calculated-field` first). |
+| `duplicate-formula` | Propose keeping one field. Repoint the formulas that use the others to it ("Changing an existing calculated field"), then ask the user to delete the others by hand. |
+| `default-sheet-name` | Suggest a descriptive name based on the sheet's content (`get-sheet-info`), and rename with `rename-sheet` after approval. |
+| `placeholder-calc-name` | Suggest a meaningful name from the formula and rename it ("Changing an existing calculated field"). |
+| `uncommented-complex-calc` | Draft a `//` comment that explains the intent, show it, and add it as a `//` line at the top of the formula ("Changing an existing calculated field"). |
 | `orphan-worksheet` | Ask whether it is a scratch sheet (hide or delete it with `delete-sheet`) or should be placed on a dashboard. |
 | `extract-row-limit` | Ask the user to remove the row limit in Edit Extract. |
 | `inconsistent-font-size` | The message names the sheet, the role (title, tooltip, axis title…) and the size to match. Confirm the difference is not intended (a KPI title may be bigger on purpose), then set that sheet's size with `format-worksheets`. For many sheets, propose the change for all of them at once and apply after one approval. |
-| `naming-convention`, `naming-kind-mismatch` | The message quotes the team rule. Propose a new name that follows it (for a mismatch, say which part of the name no longer matches the formula), then rename with `author-calc` or `rename-sheet` after approval. Renaming a calculated field does not break formulas that use it. Propose several renames together for one approval when there are many. |
+| `naming-convention`, `naming-kind-mismatch` | The message quotes the team rule. Propose a new name that follows it (for a mismatch, say which part of the name no longer matches the formula), then rename it after approval: sheets with `rename-sheet`, calculated fields and parameters as in "Changing an existing calculated field". Renaming a calculated field does not break formulas that use it. Propose several renames together for one approval when there are many. |
 | `naming-whitespace` | Propose the name without the extra spaces and rename after approval. |
-| `magic-number` | Ask what the number means. If users should change it, propose a parameter (`author-parameter`); if it is fixed, a named calculated field such as `Target Margin = 0.1` (`author-calc`). Then rewrite every formula that uses the same number (the message lists them) to refer to it, validating each with `validate-calculated-field`, after one approval. For a year, propose a relative date such as `DATEDIFF('year', [Date], TODAY()) = 0` instead. If the number is intentional, offer to add it to `"magic_numbers": {"allow": [...]}` in `.twbdoc.json`. |
+| `magic-number` | Ask what the number means. If users should change it, propose a parameter (`author-parameter`); if it is fixed, a new named calculated field such as `Target Margin = 0.1` (`author-calc`). Then rewrite every formula that uses the same number (the message lists them) to refer to it, as in "Changing an existing calculated field", after one approval. For a year, propose a relative date such as `DATEDIFF('year', [Date], TODAY()) = 0` instead. If the number is intentional, offer to add it to `"magic_numbers": {"allow": [...]}` in `.twbdoc.json`. |
 | `inconsistent-font-family` | Propose one spelling or one allowed font and list the sheets that change; apply with `format-worksheets` after approval. |
 | `deep-dependency`, `comment-coverage`, `unused-datasource` | Informational: explain and suggest, do not change anything unless asked. |
 

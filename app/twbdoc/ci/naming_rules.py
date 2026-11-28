@@ -125,9 +125,11 @@ def named_items(workbook: Workbook) -> Iterator[tuple[str, str]]:
 
 
 def _fix_tools(kind: str) -> tuple[str, ...]:
+    from .rules import RENAME_FIELD_TOOLS
+
     if kind in (KIND_WORKSHEET, KIND_DASHBOARD):
         return ("rename-sheet",)
-    return ("author-calc",)
+    return RENAME_FIELD_TOOLS
 
 
 def _rename_hint(kind: str, t: Translator) -> str:

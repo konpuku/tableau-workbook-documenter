@@ -29,6 +29,11 @@ SEVERITY_WARNING = "warning"
 SEVERITY_INFO = "info"
 SEVERITY_ORDER = {SEVERITY_ERROR: 0, SEVERITY_WARNING: 1, SEVERITY_INFO: 2}
 
+# 既存の計算フィールド・パラメーターを直す Tableau MCP ツール。author-calc は
+# 新しい計算フィールドを作るツールなので、既存の修正には使わない (#38)。
+RENAME_FIELD_TOOLS = ("get-datasource-xml", "apply-datasource")
+EDIT_CALC_TOOLS = ("get-datasource-xml", "validate-calculated-field", "apply-datasource")
+
 # コメントなしで「複雑」とみなす計算式の長さ (コメント・空白除去後の文字数)
 COMPLEX_FORMULA_LENGTH = 120
 
@@ -136,7 +141,7 @@ def _health_rules(
                 "Keep one field, repoint the references to it, then delete "
                 "the others.",
             ),
-            ("search-workbook-fields", "author-calc"),
+            ("search-workbook-fields", *EDIT_CALC_TOOLS),
         ),
         (
             "extract-row-limit",
@@ -145,7 +150,7 @@ def _health_rules(
                 "抽出の編集で行数制限を外し、抽出を更新。",
                 "Remove the row limit in Edit Extract and refresh the extract.",
             ),
-            ("refresh-datasource",),
+            ("refresh-datasource-extract",),
         ),
         (
             "orphan-worksheet",
@@ -173,7 +178,7 @@ def _health_rules(
                 "中間の計算フィールドを統合・整理する。",
                 "Merge or simplify the intermediate calculated fields.",
             ),
-            ("author-calc",),
+            EDIT_CALC_TOOLS,
         ),
         (
             "comment-coverage",
@@ -259,7 +264,7 @@ def _placeholder_calc_names(
                         "計算フィールドの名前を変更する。",
                         "Rename the calculated field.",
                     ),
-                    ("author-calc",),
+                    RENAME_FIELD_TOOLS,
                 )
             )
     return findings
@@ -294,7 +299,7 @@ def _uncommented_complex_calcs(
                     "計算式の先頭に // で目的・前提を追記する。",
                     "Add a // comment at the top describing its purpose.",
                 ),
-                ("author-calc", "validate-calculated-field"),
+                EDIT_CALC_TOOLS,
             )
         )
     return findings
@@ -403,7 +408,7 @@ def _broken_references(workbook: Workbook, t: Translator) -> list[Finding]:
                     "validate-calculated-field で式を検証し、正しいフィールドに置き換える。",
                     "Validate the formula and point it at existing fields.",
                 ),
-                ("validate-calculated-field", "author-calc"),
+                ("search-workbook-fields", *EDIT_CALC_TOOLS),
             )
         )
     return findings
