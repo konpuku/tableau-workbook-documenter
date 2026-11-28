@@ -29,6 +29,7 @@ from typing import Iterable
 from ..errors import InvalidFileError
 from ..i18n import JA, Translator
 from .rules import SEVERITY_ORDER, Finding
+from .style_rules import FORMAT_PREFIX, ROLE_LABELS, StyleConfig
 
 CONFIG_FILE_NAME = ".twbdoc.json"
 OFF = "off"
@@ -41,6 +42,7 @@ class CheckConfig:
     ignore_ids: frozenset[str] = frozenset()
     ignore_pairs: frozenset[tuple[str, str]] = frozenset()
     fail_on: str = "error"
+    style: StyleConfig = field(default_factory=StyleConfig)
 
     def apply(self, findings: Iterable[Finding]) -> list[Finding]:
         result: list[Finding] = []
@@ -123,4 +125,51 @@ def load_config(path: Path | None, t: Translator = JA) -> CheckConfig:
         ignore_ids=frozenset(ignore_ids),
         ignore_pairs=frozenset(ignore_pairs),
         fail_on=fail_on,
+        style=_load_style(data.get("style"), t),
+    )
+
+
+def _load_style(data: object, t: Translator) -> StyleConfig:
+    """"style": {"font_families": [...], "font_sizes": {役割: pt}, "max_font_families": n}"""
+    if data is None:
+        return StyleConfig()
+    if not isinstance(data, dict):
+        raise InvalidFileError(t("style の形式が不正です", "Invalid style section"))
+    families = data.get("font_families") or []
+    if not isinstance(families, list) or not all(isinstance(f, str) for f in families):
+        raise InvalidFileError(
+            t("style.font_families はフォント名の配列にしてください",
+              "style.font_families must be a list of font names")
+        )
+    sizes: dict[str, float] = {}
+    for key, value in (data.get("font_sizes") or {}).items():
+        if key not in ROLE_LABELS and not str(key).startswith(FORMAT_PREFIX):
+            raise InvalidFileError(
+                t(
+                    f"style.font_sizes の役割が不正です: {key} "
+                    f"(使える役割: {', '.join(ROLE_LABELS)})",
+                    f"Unknown role in style.font_sizes: {key} "
+                    f"(valid roles: {', '.join(ROLE_LABELS)})",
+                )
+            )
+        try:
+            size = float(value)
+        except (TypeError, ValueError):
+            size = 0.0
+        if size <= 0:
+            raise InvalidFileError(
+                t(f"style.font_sizes.{key} のサイズが不正です: {value}",
+                  f"Invalid size for style.font_sizes.{key}: {value}")
+            )
+        sizes[str(key)] = size
+    max_families = data.get("max_font_families", StyleConfig().max_font_families)
+    if not isinstance(max_families, int) or max_families < 1:
+        raise InvalidFileError(
+            t("style.max_font_families は 1 以上の整数にしてください",
+              "style.max_font_families must be an integer of 1 or more")
+        )
+    return StyleConfig(
+        font_families=tuple(families),
+        font_sizes=sizes,
+        max_font_families=max_families,
     )

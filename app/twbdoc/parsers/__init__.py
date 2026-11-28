@@ -14,6 +14,7 @@ from .filters import parse_shared_filters
 from .metadata import parse_metadata
 from .parameters import parse_parameters
 from .styles import parse_style_rules
+from .text_styles import parse_text_styles
 from .worksheets import parse_worksheets
 
 
@@ -31,6 +32,7 @@ def parse_workbook(root: ET.Element, source_file: str) -> Workbook:
         style_rules=parse_style_rules(root),
         shared_filters=parse_shared_filters(root),
         actions=parse_actions(root),
+        text_styles=parse_text_styles(root),
     )
 
 

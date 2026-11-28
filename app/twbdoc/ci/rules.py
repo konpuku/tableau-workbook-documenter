@@ -20,6 +20,7 @@ from .. import health
 from ..health import HealthFinding
 from ..i18n import JA, Translator
 from ..model import CalculatedField, Workbook
+from .style_rules import inconsistent_font_families, inconsistent_font_sizes
 
 SEVERITY_ERROR = "error"
 SEVERITY_WARNING = "warning"
@@ -468,6 +469,8 @@ RULE_IDS = (
     "default-sheet-name",
     "placeholder-calc-name",
     "uncommented-complex-calc",
+    "inconsistent-font-size",
+    "inconsistent-font-family",
 )
 
 
@@ -484,6 +487,8 @@ def run_checks(
     findings = [*extra, *_from_health(workbook, t)]
     for rule in _EXTRA_RULES:
         findings.extend(rule(workbook, t))
+    for style_rule in (inconsistent_font_sizes, inconsistent_font_families):
+        findings.extend(style_rule(workbook, t, config.style))
     applied = config.apply(findings)
     applied.sort(
         key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.rule, f.target)
