@@ -31,6 +31,7 @@ from ..errors import InvalidFileError
 from ..i18n import JA, Translator
 from .rules import SEVERITY_ORDER, Finding
 from .naming_rules import KIND_LABELS, PRESETS, NamingConfig, NamingRule
+from .number_rules import MagicNumberConfig
 from .style_rules import FORMAT_PREFIX, ROLE_LABELS, StyleConfig
 
 CONFIG_FILE_NAME = ".twbdoc.json"
@@ -46,6 +47,7 @@ class CheckConfig:
     fail_on: str = "error"
     style: StyleConfig = field(default_factory=StyleConfig)
     naming: NamingConfig = field(default_factory=NamingConfig)
+    magic_numbers: MagicNumberConfig = field(default_factory=MagicNumberConfig)
 
     def apply(self, findings: Iterable[Finding]) -> list[Finding]:
         result: list[Finding] = []
@@ -130,7 +132,28 @@ def load_config(path: Path | None, t: Translator = JA) -> CheckConfig:
         fail_on=fail_on,
         style=_load_style(data.get("style"), t),
         naming=_load_naming(data.get("naming"), t),
+        magic_numbers=_load_magic_numbers(data.get("magic_numbers"), t),
     )
+
+
+def _load_magic_numbers(data: object, t: Translator) -> MagicNumberConfig:
+    """"magic_numbers": {"allow": [数値, ...]} (0 / 1 / -1 / 100 は既定で対象外)"""
+    if data is None:
+        return MagicNumberConfig()
+    allow = data.get("allow", []) if isinstance(data, dict) else None
+    unknown = set(data) - {"allow"} if isinstance(data, dict) else set()
+    if (
+        unknown
+        or not isinstance(allow, list)
+        or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in allow)
+    ):
+        raise InvalidFileError(
+            t(
+                'magic_numbers は {"allow": [数値, ...]} の形にしてください',
+                'magic_numbers must look like {"allow": [number, ...]}',
+            )
+        )
+    return MagicNumberConfig(allow=frozenset(float(v) for v in allow))
 
 
 def _load_naming(data: object, t: Translator) -> NamingConfig:

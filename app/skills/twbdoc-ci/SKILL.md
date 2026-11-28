@@ -1,6 +1,6 @@
 ---
 name: twbdoc-ci
-description: Run twbdoc CI checks on the workbook open in Tableau Studio (unused calculated fields and parameters, unresolved references, invalid fields on sheets, duplicate formulas, default sheet names, placeholder calc names, uncommented complex formulas, extract row limits, inconsistent font sizes and fonts). Use after editing a workbook, when the user asks to "check", "lint", "CI", "review" or "clean up" the workbook, or before saving or publishing. Explains each finding, proposes a fix, and applies it only after the user approves.
+description: Run twbdoc CI checks on the workbook open in Tableau Studio (unused calculated fields and parameters, unresolved references, invalid fields on sheets, duplicate formulas, default sheet names, placeholder calc names, uncommented complex formulas, extract row limits, inconsistent font sizes and fonts, naming conventions, hard-coded numbers in comparisons). Use after editing a workbook, when the user asks to "check", "lint", "CI", "review" or "clean up" the workbook, or before saving or publishing. Explains each finding, proposes a fix, and applies it only after the user approves.
 ---
 
 # twbdoc CI for the open workbook
@@ -60,6 +60,7 @@ gone (its `id` no longer appears).
 | `inconsistent-font-size` | The message names the sheet, the role (title, tooltip, axis title…) and the size to match. Confirm the difference is not intended (a KPI title may be bigger on purpose), then set that sheet's size with `format-worksheets`. For many sheets, propose the change for all of them at once and apply after one approval. |
 | `naming-convention`, `naming-kind-mismatch` | The message quotes the team rule. Propose a new name that follows it (for a mismatch, say which part of the name no longer matches the formula), then rename with `author-calc` or `rename-sheet` after approval. Renaming a calculated field does not break formulas that use it. Propose several renames together for one approval when there are many. |
 | `naming-whitespace` | Propose the name without the extra spaces and rename after approval. |
+| `magic-number` | Ask what the number means. If users should change it, propose a parameter (`author-parameter`); if it is fixed, a named calculated field such as `Target Margin = 0.1` (`author-calc`). Then rewrite every formula that uses the same number (the message lists them) to refer to it, validating each with `validate-calculated-field`, after one approval. For a year, propose a relative date such as `DATEDIFF('year', [Date], TODAY()) = 0` instead. If the number is intentional, offer to add it to `"magic_numbers": {"allow": [...]}` in `.twbdoc.json`. |
 | `inconsistent-font-family` | Propose one spelling or one allowed font and list the sheets that change; apply with `format-worksheets` after approval. |
 | `deep-dependency`, `comment-coverage`, `unused-datasource` | Informational: explain and suggest, do not change anything unless asked. |
 
