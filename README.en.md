@@ -6,11 +6,28 @@ Analyses a Tableau workbook (.twbx / .twb) and generates documentation
 (HTML / Markdown) automatically.
 
 - **Fully local**: no generative AI, no internet connection and no third-party
-  libraries (Python standard library only)
+  libraries (Python standard library only). Only the Agent edition's Tableau Agent
+  integration uses generative AI (see below)
 - **Built for corporate Windows environments**: runs with just bat / PowerShell /
   Python, and can be distributed with Python bundled for PCs without it
 - **Japanese / English**: the output language is detected from the environment,
   and the terminology follows the official Tableau Help wording
+
+## Which edition to use
+
+There are two distribution zips. The documentation, CI checks and Live CI are the same in
+both; the only difference is the Tableau Agent integration.
+
+| | Standalone (`standalone`) | Agent (`agent`) |
+| --- | --- | --- |
+| For | Everyone, including users without a Tableau Plus licence | Users of Tableau Studio and the Tableau Agent (Tableau Plus Creators) |
+| Generative AI | Not used (nothing is sent anywhere) | Uses the Tableau Agent's AI (twbdoc itself does not) |
+| Contents | `generate_doc.bat` (documentation), `live_ci.bat` (Live CI) | Standalone + `install_skill.bat` (Tableau Agent skill) |
+| Live CI | Watches saved files (and unsaved edits when Tableau Studio is available) | Same |
+
+If unsure, use the standalone edition. With the Agent edition, the skill passes workbook
+content (formulas, field names and so on) to Tableau's generative AI through the Tableau
+Agent. **Check that your organisation allows the Tableau Agent before using it.**
 
 ## Requirements
 
@@ -77,13 +94,16 @@ Folder and file names are always in English so that they are safe on any system.
 Download a bundled zip from
 [Releases](https://github.com/konpuku/tableau-workbook-documenter/releases),
 extract it and distribute it. Users need no installation and no admin rights.
-Besides `generate_doc.bat` (documentation), the zip contains `live_ci.bat` (Live CI) and
-`install_skill.bat` (installs the Tableau Agent skill).
+Each zip contains `generate_doc.bat` (documentation) and `live_ci.bat` (Live CI); the Agent
+edition also contains `install_skill.bat` (installs the Tableau Agent skill). See "Which
+edition to use".
 
 | Asset | Contents | Size |
 | --- | --- | --- |
-| `...-with-python-hyperapi-win64.zip` | Python + tableauhyperapi (sample values from .hyper extracts) | approx. 84MB |
-| `...-with-python-win64.zip` | Python only | approx. 13MB |
+| `...-standalone-with-python-win64.zip` | Standalone, Python only | approx. 13MB |
+| `...-standalone-with-python-hyperapi-win64.zip` | Standalone, Python + tableauhyperapi (sample values from .hyper extracts) | approx. 84MB |
+| `...-agent-with-python-win64.zip` | Agent edition, Python only | approx. 13MB |
+| `...-agent-with-python-hyperapi-win64.zip` | Agent edition, Python + tableauhyperapi | approx. 84MB |
 
 ### Option 2: set it up yourself
 
@@ -97,7 +117,8 @@ cd twb_doc_generator\app
 ```
 
 Then simply copy the whole tool folder. To build a zip yourself, run
-`.\build_distribution.ps1 [-WithHyperApi]` and it is written to `dist\`.
+`.\build_distribution.ps1 [-Edition Standalone|Agent] [-WithHyperApi]` and it is written
+to `dist\` (the default edition is standalone).
 
 Redistribution is permitted in both cases (Python is under the PSF License,
 tableauhyperapi under Apache-2.0).
@@ -178,7 +199,7 @@ conversion), comparisons with `INDEX()` / `SIZE()` / `FIRST()` / `LAST()` or wit
 choice codes such as `[Parameters].[Select] = 2`), and digits inside
 strings or comments. List other numbers to skip in `"magic_numbers": {"allow": [0.5, 12]}`.
 
-Double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
+Agent edition: double-click `install_skill.bat` to install the **twbdoc-ci** skill for the Tableau Agent.
 The skill runs with the Python found at install time (the bundled Python first), so it
 works from the distributed zip on PCs without Python. After
 `/reload-skills`, ask the agent to "run the CI check": it explains each finding, proposes

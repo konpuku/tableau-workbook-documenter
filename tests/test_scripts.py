@@ -103,6 +103,46 @@ class TestDistribution:
     def test_app_フォルダを丸ごと含める(self) -> None:
         assert "Copy-Item $scriptDir $appDest -Recurse" in self._script()
 
+    def _agent_only_paths(self) -> list[str]:
+        block = re.search(r"\$AgentOnlyPaths = @\((.*?)\)", self._script(), re.DOTALL)
+        assert block, "$AgentOnlyPaths が見つかりません"
+        return re.findall(r"'([^']+)'", block.group(1))
+
+    def test_版は単体版と_Agent_版で既定は単体版(self) -> None:
+        script = self._script()
+        assert "[ValidateSet('Standalone', 'Agent')]" in script
+        assert "[string]$Edition = 'Standalone'" in script
+        assert "-$editionSlug-$suffix-win64.zip" in script
+
+    def test_Agent_版だけのファイルが存在する(self) -> None:
+        paths = self._agent_only_paths()
+        assert {"install_skill.bat", r"app\install_skill.ps1", r"app\skills"} <= set(paths)
+        for relative in paths:
+            assert (ROOT_DIR / relative.replace("\\", "/")).exists(), relative
+
+    def test_Agent_連携のファイルはすべて_Agent_版だけに入る(self) -> None:
+        """スキル関係のファイルを足したときに、単体版へ紛れ込まないようにする。"""
+        covered = [ROOT_DIR / p.replace("\\", "/") for p in self._agent_only_paths()]
+        candidates = [
+            *ROOT_DIR.glob("*skill*"),
+            *(ROOT_DIR / "app").glob("*skill*"),
+        ]
+        for path in candidates:
+            assert any(path == c or c in path.parents for c in covered), path
+
+    def test_リリースの確認が版ごとの中身と一致する(self) -> None:
+        workflow = (ROOT_DIR / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        assert "-Edition Standalone" in workflow and "-Edition Agent" in workflow
+        assert "Expected 4 zip files" in workflow
+        block = re.search(r"\$agentOnly = @\((.*?)\)", workflow, re.DOTALL)
+        assert block
+        listed = re.findall(r'"\$root/([^"]+)"', block.group(1))
+        prefixes = [p.replace("\\", "/") for p in self._agent_only_paths()]
+        for entry in listed:
+            assert any(entry == p or entry.startswith(p + "/") for p in prefixes), entry
+
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows PowerShell が必要")
 class TestInstallSkill:
